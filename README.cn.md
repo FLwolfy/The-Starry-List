@@ -4,7 +4,7 @@
 
 See the English document [here](./README.md).
 
-本模组的所有游戏功能都在服务端完成。独立服务器上的玩家无需安装 The-Starry-List，也可以使用原版客户端查看排行榜并执行指令。客户端安装仅用于给单人游戏或 LAN 集成服务器提供 ModMenu / Cloth Config 配置界面。
+本模组的所有游戏功能都在服务端完成。独立服务器上的玩家无需安装 The-Starry-List，也可以使用原版客户端查看排行榜并使用 `/starry` 容器菜单。客户端安装仅用于给单人游戏或 LAN 集成服务器提供 ModMenu / Cloth Config 配置界面。
 
 本项目完全重写并 fork 自 [TheStarryMiningList](https://github.com/crackun24/TheStarryMiningList)。
 
@@ -18,7 +18,7 @@ See the English document [here](./README.md).
 - 支持选择榜单、调整顺序、隐藏侧边栏以及开启或关闭轮转。
 - 支持服务器默认显示配置和玩家个人覆盖配置。
 - 分数和显示偏好按世界保存，服务器重启后继续保留。
-- 提供玩家指令和完整的管理员分数/profile 管理指令。
+- 提供本地化的 `/starry` 物品栏菜单，以及完整的管理员分数/profile 管理指令。
 - 服务端消息支持 `en_us` 和 `zh_cn`。
 - 可作为纯服务端模组部署，客户端无需安装。
 - 可选的 Cloth Config 图形化配置界面。
@@ -35,6 +35,7 @@ The-Starry-List 只提供下文列出的六个榜单，不支持新增其他榜�
 | Java | `25` 或更高 | 运行服务器和构建项目 |
 | Fabric Loader | `0.19.3` 或兼容版本 | 必需 |
 | Fabric API | `0.145.1+26.1` 或兼容版本 | 必需 |
+| SGui | `2.0.0+26.1` | 已内嵌在 The-Starry-List 中，无需另行安装 |
 | Cloth Config | `26.1.154` | 仅本地配置界面可选 |
 | ModMenu | `18.0.0` | 仅本地配置界面可选 |
 
@@ -168,10 +169,7 @@ config/starrylist.json
     "rotationEnabled": true,
     "rotationIntervalSeconds": 20,
     "defaultBoards": [
-      "mining",
-      "placing",
-      "mob_kills",
-      "player_kills"
+      "mining"
     ]
   }
 }
@@ -195,7 +193,7 @@ config/starrylist.json
 | `hiddenByDefault` | `boolean` | `false` | 没有个人覆盖的玩家是否默认隐藏侧边栏 |
 | `rotationEnabled` | `boolean` | `true` | 默认 profile 是否轮转多个榜单 |
 | `rotationIntervalSeconds` | `int` | `20` | 默认轮转间隔，范围 `1`～`3600` 秒 |
-| `defaultBoards` | `string[]` | 四个榜单 ID | 默认榜单顺序，只能使用六个固定 ID，不允许重复 |
+| `defaultBoards` | `string[]` | `["mining"]` | 默认榜单顺序，只能使用六个固定 ID，不允许重复 |
 
 `defaultBoards` 可使用：
 
@@ -230,49 +228,27 @@ travel_distance
 | `CUSTOM` | 使用玩家自己的榜单顺序、轮转开关和间隔 |
 | `HIDDEN` | 不显示 StarryList 侧边栏 |
 
-玩家执行 `display default` 时会删除个人覆盖，而不是复制一份当前默认值。管理员以后修改服务器默认配置时，这些玩家会自动跟随新设置。
+玩家在 `/starry` 中选择**使用服务器默认设置**时会删除个人覆盖，而不是复制一份当前默认值。管理员以后修改服务器默认配置时，这些玩家会自动跟随新设置。
 
-玩家在 `DEFAULT` 或 `HIDDEN` 状态下执行 `set`、`add`、`remove`、`move`、`rotation` 或 `interval` 时，会基于当前服务器默认值创建 `CUSTOM` profile。个人设置只影响该玩家。
+玩家在 `DEFAULT` 或 `HIDDEN` 状态下修改榜单、顺序、轮转或间隔时，会基于当前服务器默认值创建 `CUSTOM` profile。个人设置只影响该玩家。玩家加入或修改设置时会立即从已选第一榜开始显示，经过完整轮转间隔后才切换下一榜。
 
 ---
 
-## 玩家指令
+## 玩家菜单
 
-所有玩家指令均不需要管理员权限。`<参数>` 表示必填，`[参数]` 表示可选。
+`/starry` 无需管理员权限，会直接打开固定、无分页的六榜物品栏菜单。该指令没有参数或子命令；控制台和命令方块执行时会收到“仅玩家可用”的提示。
 
-| 指令 | 功能 |
-|---|---|
-| `/starry` | 显示当前 profile 模式、有效榜单、轮转状态和间隔 |
-| `/starry boards [page]` | 分页列出六个可用榜单及其显示名 |
-| `/starry display status` | 与 `/starry` 相同，显示当前状态 |
-| `/starry display default` | 删除个人覆盖并恢复跟随服务器默认值 |
-| `/starry display hide` | 隐藏自己的 StarryList 侧边栏 |
-| `/starry display set <boardIds>` | 用给定的有序榜单列表替换个人选择 |
-| `/starry display add <boardId>` | 将一个尚未选择的榜单追加到末尾 |
-| `/starry display remove <boardId>` | 从个人列表移除榜单，但不能移除最后一个 |
-| `/starry display move <boardId> <index>` | 将榜单移动到从 `1` 开始的位置 |
-| `/starry display rotation <true\|false>` | 开启或关闭个人榜单轮转 |
-| `/starry display interval <seconds>` | 设置个人轮转间隔，范围 `1`～`3600` 秒 |
+六张榜单卡片会显示本地化名称、启用状态、当前顺序，以及向上/向下移动控件。启用榜单会将其追加到已选顺序末尾，停用会将其移除；可见模式下不能停用最后一个榜单，应使用**隐藏侧边栏**。底部控件可恢复服务器默认值、隐藏或显示侧边栏、切换轮转、通过铁砧输入 `1`～`3600` 秒间隔，以及关闭菜单。每次点击都会立即保存到当前世界 SavedData 并刷新右侧榜单。
 
-`display set` 接受空格或逗号分隔的 ID，保留首次出现的顺序并去除重复项。如果任意 ID 无效，整次操作失败且不会修改 profile。
-
-示例：
-
-```text
-/starry display set mining deaths travel_distance
-/starry display set mining,deaths,travel_distance
-/starry display move travel_distance 1
-/starry display rotation true
-/starry display interval 10
-```
-
-控制台可以使用 `/starry` 查看提示并使用 `/starry boards` 查看榜单，但个人显示设置必须由玩家执行。
+菜单由内嵌在模组 JAR 中的 SGui 实现，只发送原版容器 packet；玩家客户端无需单独安装 SGui 或 The-Starry-List。菜单优先使用玩家上报的 `zh_cn` 或 `en_us`，否则回退到服务器配置语言，最后回退到英语。
 
 ---
 
 ## 管理员指令
 
 `/starryadmin` 默认需要原版权限等级 `2`。服务器控制台始终可以执行。`<targets>` 使用原版在线玩家选择器，因此支持玩家名以及 `@a`、`@p` 等选择器。
+
+管理员操作只保留指令形式；`/starryadmin` 不会打开或提供容器 GUI。
 
 | 指令 | 功能 |
 |---|---|
@@ -306,8 +282,8 @@ travel_distance
 在客户端安装 Cloth Config 和 ModMenu 后，配置界面包含：
 
 - **常规**：服务端消息语言、管理员权限等级，以及本地作用范围提示。
-- **显示**：默认隐藏、默认轮转、轮转间隔和默认榜单顺序。
-- **全部**：当前关键设置摘要。
+- **显示**：默认隐藏、默认轮转、轮转间隔，以及同页显示的六个本地化开关和上下排序控件。未启用榜单排在已启用榜单之后，恢复默认时只启用挖掘榜。
+- **全部**：当前编辑中、可能尚未保存的设置实时摘要。
 
 保存时使用与 JSON 配置相同的完整验证。保存成功或失败都会显示 toast，详细异常会写入日志。
 
@@ -339,7 +315,7 @@ travel_distance
 
 ### 如何彻底隐藏侧边栏？
 
-玩家执行 `/starry display hide`。若希望新玩家默认隐藏，可将 `display.hiddenByDefault` 设置为 `true`。
+玩家打开 `/starry` 并选择**隐藏侧边栏**。若希望新玩家默认隐藏，可将 `display.hiddenByDefault` 设置为 `true`。
 
 ### 配置重载失败会怎样？
 
@@ -352,13 +328,13 @@ travel_distance
 需要 Java 25。仓库已包含 Gradle Wrapper：
 
 ```bash
-./gradlew clean build
+./gradlew clean build -x test
 ```
 
 Windows：
 
 ```powershell
-gradlew.bat clean build
+gradlew.bat clean build -x test
 ```
 
 构建产物位于 `build/libs/`。普通 JAR 用于安装，带 `-sources` 后缀的 JAR 包含源码。
@@ -369,7 +345,7 @@ gradlew.bat clean build
 
 - 原项目：[TheStarryMiningList](https://github.com/crackun24/TheStarryMiningList)
 - Fabric Loader 与 Fabric API
-- Cloth Config 与 ModMenu
+- SGui、Cloth Config 与 ModMenu
 
 ## 许可证
 

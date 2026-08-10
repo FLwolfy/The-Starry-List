@@ -1,6 +1,5 @@
 package com.flwolfy.starrylist.scoreboard;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.world.scores.Objective;
@@ -33,13 +32,13 @@ public final class StarryListScoreboardManager {
         objective = scoreboard.addObjective(
             board.objectiveName(),
             ObjectiveCriteria.DUMMY,
-            Component.literal(board.displayName()),
+            board.displayName(),
             ObjectiveCriteria.RenderType.INTEGER,
             false,
             null
         );
       } else {
-        objective.setDisplayName(Component.literal(board.displayName()));
+        objective.setDisplayName(board.displayName());
         objective.setRenderType(ObjectiveCriteria.RenderType.INTEGER);
       }
       scoreboard.startTrackingObjective(objective);

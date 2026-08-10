@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.data.config;
 
 import com.flwolfy.starrylist.data.lang.StarryListLang;
+import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,10 +18,6 @@ public record StarryListConfigData(
     General general,
     Display display
 ) {
-
-  private static final List<String> BUILT_IN_IDS = List.of(
-      "mining", "placing", "mob_kills", "player_kills", "deaths", "travel_distance"
-  );
 
   /**
    * General server settings.
@@ -57,7 +54,7 @@ public record StarryListConfigData(
           false,
           true,
           20,
-          List.of("mining", "placing", "mob_kills", "player_kills")
+          List.of("mining")
       )
   );
 
@@ -86,7 +83,7 @@ public record StarryListConfigData(
     if (new HashSet<>(defaults).size() != defaults.size()) {
       invalid.add("display.defaultBoards");
     }
-    Set<String> builtIns = Set.copyOf(BUILT_IN_IDS);
+    Set<String> builtIns = Set.copyOf(StarryListBoardRegistry.ids());
     if (defaults.stream().anyMatch(id -> !builtIns.contains(id))) {
       invalid.add("display.defaultBoards");
     }

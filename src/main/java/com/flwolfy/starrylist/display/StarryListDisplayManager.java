@@ -5,9 +5,11 @@ import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
 import com.flwolfy.starrylist.data.state.StarryListState;
 import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,6 +24,8 @@ public final class StarryListDisplayManager {
   private final java.util.function.Supplier<StarryListConfigData> config;
   private final java.util.function.Supplier<StarryListBoardRegistry> registry;
   private final Map<UUID, String> displayedObjectives = new HashMap<>();
+  private final Map<UUID, Long> rotationStartedAt = new HashMap<>();
+  private final java.util.Set<UUID> syncedPlayers = new HashSet<>();
   private long ticks;
 
   /**
@@ -57,11 +61,14 @@ public final class StarryListDisplayManager {
    * @param force whether to resend even if the selected objective is unchanged
    */
   public void update(ServerPlayer player, boolean force) {
+    syncObjectives(player);
+    if (force) rotationStartedAt.put(player.getUUID(), ticks);
     EffectiveDisplay effective = effective(player.getUUID());
     Objective objective = null;
     if (!effective.hidden() && !effective.boards().isEmpty()) {
       int index = effective.rotationEnabled() && effective.boards().size() > 1
-          ? (int) ((ticks / (effective.intervalSeconds() * 20L)) % effective.boards().size())
+          ? (int) (((ticks - rotationStartedAt.computeIfAbsent(player.getUUID(), ignored -> ticks))
+              / (effective.intervalSeconds() * 20L)) % effective.boards().size())
           : 0;
       String boardId = effective.boards().get(index);
       objective = registry.get().get(boardId)
@@ -83,6 +90,8 @@ public final class StarryListDisplayManager {
    */
   public void remove(ServerPlayer player) {
     displayedObjectives.remove(player.getUUID());
+    rotationStartedAt.remove(player.getUUID());
+    syncedPlayers.remove(player.getUUID());
   }
 
   /**
@@ -143,6 +152,18 @@ public final class StarryListDisplayManager {
         config.get().display().rotationEnabled(),
         config.get().display().rotationIntervalSeconds()
     );
+  }
+
+  private void syncObjectives(ServerPlayer player) {
+    if (!syncedPlayers.add(player.getUUID())) return;
+    net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
+    for (var board : registry.get().all()) {
+      Objective objective = scoreboard.getObjective(board.objectiveName());
+      if (objective == null) continue;
+      for (Packet<?> packet : scoreboard.getStartTrackingPackets(objective)) {
+        player.connection.send(packet);
+      }
+    }
   }
 
   /**

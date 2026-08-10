@@ -4,7 +4,7 @@
 
 简体中文文档见[这里](./README.cn.md)。
 
-All gameplay features run on the server. Players on a dedicated server do not need The-Starry-List on their clients: an unmodified client can view the sidebar and use every player command. Client installation is only needed for the ModMenu / Cloth Config editor used by single-player and LAN integrated servers.
+All gameplay features run on the server. Players on a dedicated server do not need The-Starry-List on their clients: an unmodified client can view the sidebar and use the `/starry` container menu. Client installation is only needed for the ModMenu / Cloth Config editor used by single-player and LAN integrated servers.
 
 This project is a complete rewrite forked from [TheStarryMiningList](https://github.com/crackun24/TheStarryMiningList).
 
@@ -18,7 +18,7 @@ This project is a complete rewrite forked from [TheStarryMiningList](https://git
 - Board selection, ordering, hiding, and optional rotation.
 - Server defaults with persistent per-player overrides.
 - World-scoped scores and display preferences that survive server restarts.
-- Player commands plus complete administrative score and profile management.
+- A localized, inventory-style `/starry` menu plus complete command-based administrative score and profile management.
 - Server messages in `en_us` and `zh_cn`.
 - Dedicated-server-only deployment; clients do not need the mod.
 - Optional Cloth Config graphical editor.
@@ -35,6 +35,7 @@ The-Starry-List provides only the six boards documented below. Additional board 
 | Java | `25` or newer | Running the server and building the project |
 | Fabric Loader | `0.19.3` or compatible | Required |
 | Fabric API | `0.145.1+26.1` or compatible | Required |
+| SGui | `2.0.0+26.1` | Bundled inside The-Starry-List; do not install separately |
 | Cloth Config | `26.1.154` | Optional local configuration screen |
 | ModMenu | `18.0.0` | Optional local configuration screen |
 
@@ -168,10 +169,7 @@ The path is relative to the Minecraft game directory or dedicated-server root.
     "rotationEnabled": true,
     "rotationIntervalSeconds": 20,
     "defaultBoards": [
-      "mining",
-      "placing",
-      "mob_kills",
-      "player_kills"
+      "mining"
     ]
   }
 }
@@ -195,7 +193,7 @@ The server selects one global message language. It sends already-rendered litera
 | `hiddenByDefault` | `boolean` | `false` | Whether players without an override hide the sidebar by default |
 | `rotationEnabled` | `boolean` | `true` | Whether the default profile rotates through multiple boards |
 | `rotationIntervalSeconds` | `int` | `20` | Default rotation interval from `1` through `3600` seconds |
-| `defaultBoards` | `string[]` | Four board IDs | Ordered default boards; only the six fixed IDs are accepted and duplicates are rejected |
+| `defaultBoards` | `string[]` | `["mining"]` | Ordered default boards; only the six fixed IDs are accepted and duplicates are rejected |
 
 Valid `defaultBoards` values are:
 
@@ -230,49 +228,27 @@ Every player profile has one of three modes:
 | `CUSTOM` | Uses the player's board order, rotation setting, and interval |
 | `HIDDEN` | Displays no StarryList sidebar |
 
-Running `display default` removes the player's override instead of copying current defaults. If an administrator later changes server defaults, those players automatically follow the new settings.
+Choosing **Use server defaults** in `/starry` removes the player's override instead of copying current defaults. If an administrator later changes server defaults, those players automatically follow the new settings.
 
-Using `set`, `add`, `remove`, `move`, `rotation`, or `interval` from `DEFAULT` or `HIDDEN` creates a `CUSTOM` profile based on current server defaults. Personal settings affect only that player.
+Changing a board, its order, rotation, or interval from `DEFAULT` or `HIDDEN` creates a `CUSTOM` profile based on current server defaults. Personal settings affect only that player. Joining or changing settings starts at the first selected board; rotation begins only after the configured interval elapses.
 
 ---
 
-## Player commands
+## Player menu
 
-Player commands require no administrator permission. `<argument>` is required and `[argument]` is optional.
+`/starry` requires no administrator permission and directly opens one fixed, non-paginated six-board inventory menu. It has no arguments or subcommands; console and command-block sources receive a player-only error.
 
-| Command | Function |
-|---|---|
-| `/starry` | Shows the current profile mode, effective boards, rotation state, and interval |
-| `/starry boards [page]` | Lists the six available boards and display names by page |
-| `/starry display status` | Same status output as `/starry` |
-| `/starry display default` | Removes the personal override and follows server defaults |
-| `/starry display hide` | Hides the player's StarryList sidebar |
-| `/starry display set <boardIds>` | Replaces the personal selection with an ordered board list |
-| `/starry display add <boardId>` | Appends a board that is not already selected |
-| `/starry display remove <boardId>` | Removes a board but refuses to remove the last one |
-| `/starry display move <boardId> <index>` | Moves a board to a one-based position |
-| `/starry display rotation <true\|false>` | Enables or disables personal board rotation |
-| `/starry display interval <seconds>` | Sets a personal rotation interval from `1` through `3600` seconds |
+The six board cards show their localized name, enabled state, active position, and move-up/move-down controls. Enabling a board appends it to the selected order. Disabling removes it, while the last visible board cannot be disabled—use **Hide sidebar** instead. The bottom controls restore server defaults, hide or show the sidebar, toggle rotation, edit the `1`–`3600` second interval through an anvil input, and close the menu. Every click is saved immediately to the current world's SavedData and refreshes the sidebar.
 
-`display set` accepts IDs separated by spaces or commas, preserves first-occurrence order, and removes duplicates. If any ID is invalid, the entire operation fails without changing the profile.
-
-Examples:
-
-```text
-/starry display set mining deaths travel_distance
-/starry display set mining,deaths,travel_distance
-/starry display move travel_distance 1
-/starry display rotation true
-/starry display interval 10
-```
-
-The console can use `/starry` for help and `/starry boards` to list boards, but personal display settings require a player.
+The menu is implemented with the SGui library bundled in the mod JAR. It uses vanilla container packets, so players do not install SGui or The-Starry-List locally. Menu text follows the player's reported `en_us` or `zh_cn` language and falls back to the configured server language and then English.
 
 ---
 
 ## Administrator commands
 
 `/starryadmin` requires vanilla permission level `2` by default. The server console is always allowed. `<targets>` uses vanilla online-player selection, including player names and selectors such as `@a` and `@p`.
+
+Administrative operations remain command-only: `/starryadmin` does not open or provide a container GUI.
 
 | Command | Function |
 |---|---|
@@ -306,8 +282,8 @@ Score operations use signed 32-bit integers. If an addition would overflow that 
 With Cloth Config and ModMenu installed on the client, the configuration screen contains:
 
 - **General**: server message language, administrator permission level, and a local-scope notice.
-- **Display**: default visibility, rotation, interval, and board order.
-- **All**: a summary of the current key settings.
+- **Display**: default visibility, rotation, interval, plus six localized enable buttons and up/down ordering controls on one page. Disabled boards follow enabled boards, and reset restores Mining as the only default board.
+- **All**: a live summary of the current, possibly unsaved settings.
 
 Saving uses the same complete validation as the JSON configuration. Success or failure appears as a toast, and detailed exceptions are written to the log.
 
@@ -339,7 +315,7 @@ No. The scoreboard owner is the UUID string; joining only refreshes the visible 
 
 ### How do I hide the sidebar completely?
 
-Run `/starry display hide`. To hide it for new/default players, set `display.hiddenByDefault` to `true`.
+Open `/starry` and choose **Hide sidebar**. To hide it for new/default players, set `display.hiddenByDefault` to `true`.
 
 ### What happens when configuration reload fails?
 
@@ -352,13 +328,13 @@ The current valid configuration continues running and no partial fields are appl
 Java 25 is required. The repository includes the Gradle Wrapper:
 
 ```bash
-./gradlew clean build
+./gradlew clean build -x test
 ```
 
 Windows:
 
 ```powershell
-gradlew.bat clean build
+gradlew.bat clean build -x test
 ```
 
 Artifacts are written to `build/libs/`. The regular JAR is the installable mod; the JAR with a `-sources` suffix contains source code.
@@ -369,7 +345,7 @@ Artifacts are written to `build/libs/`. The regular JAR is the installable mod; 
 
 - Original project: [TheStarryMiningList](https://github.com/crackun24/TheStarryMiningList)
 - Fabric Loader and Fabric API
-- Cloth Config and ModMenu
+- SGui, Cloth Config, and ModMenu
 
 ## License
 

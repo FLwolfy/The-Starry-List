@@ -8,6 +8,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,11 +68,29 @@ public final class StarryListLangManager {
    * @return rendered literal component
    */
   public Component text(String key, Object... arguments) {
-    Map<String, String> selected = languages.getOrDefault(
-        language.getLangKey(),
-        languages.getOrDefault(StarryListLang.ENGLISH.getLangKey(), Map.of())
-    );
+    return render(language.getLangKey(), key, arguments);
+  }
+
+  /**
+   * Renders text for a requested locale with configured-language and English fallbacks.
+   *
+   * @param locale requested resource-pack locale
+   * @param key translation key
+   * @param arguments format arguments
+   * @return rendered literal component
+   */
+  public Component textFor(String locale, String key, Object... arguments) {
+    String normalized = locale == null ? "" : locale.toLowerCase(Locale.ROOT);
+    String selected = languages.containsKey(normalized) ? normalized : language.getLangKey();
+    return render(selected, key, arguments);
+  }
+
+  private Component render(String locale, String key, Object... arguments) {
+    Map<String, String> selected = languages.getOrDefault(locale, Map.of());
     String pattern = selected.get(key);
+    if (pattern == null) {
+      pattern = languages.getOrDefault(language.getLangKey(), Map.of()).get(key);
+    }
     if (pattern == null) {
       pattern = languages.getOrDefault(StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
     }

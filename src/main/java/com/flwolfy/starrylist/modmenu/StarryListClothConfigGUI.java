@@ -37,46 +37,54 @@ final class StarryListClothConfigGUI {
     general.addEntry(entries.startTextDescription(
         Component.translatable("starrylist.config.local_only").withStyle(ChatFormatting.GOLD)
     ).build());
-    general.addEntry(entries.startEnumSelector(
+    var languageEntry = entries.startEnumSelector(
         Component.translatable("starrylist.config.language"),
         StarryListLang.class,
         values.language
     ).setDefaultValue(StarryListConfigData.DEFAULT.general().language())
-        .setSaveConsumer(value -> values.language = value).build());
-    general.addEntry(entries.startIntSlider(
+        .setSaveConsumer(value -> values.language = value).build();
+    general.addEntry(languageEntry);
+    var permissionEntry = entries.startIntSlider(
         Component.translatable("starrylist.config.admin_permission"),
         values.adminPermissionLevel,
         0,
         4
-    ).setDefaultValue(2).setSaveConsumer(value -> values.adminPermissionLevel = value).build());
+    ).setDefaultValue(2).setSaveConsumer(value -> values.adminPermissionLevel = value).build();
+    general.addEntry(permissionEntry);
 
     ConfigCategory display = builder.getOrCreateCategory(
         Component.translatable("starrylist.config.display")
     );
-    display.addEntry(entries.startBooleanToggle(
+    var hiddenEntry = entries.startBooleanToggle(
         Component.translatable("starrylist.config.hidden_default"), values.hiddenByDefault
-    ).setDefaultValue(false).setSaveConsumer(value -> values.hiddenByDefault = value).build());
-    display.addEntry(entries.startBooleanToggle(
+    ).setDefaultValue(false).setSaveConsumer(value -> values.hiddenByDefault = value).build();
+    display.addEntry(hiddenEntry);
+    var rotationEntry = entries.startBooleanToggle(
         Component.translatable("starrylist.config.rotation"), values.rotationEnabled
-    ).setDefaultValue(true).setSaveConsumer(value -> values.rotationEnabled = value).build());
-    display.addEntry(entries.startIntField(
+    ).setDefaultValue(true).setSaveConsumer(value -> values.rotationEnabled = value).build();
+    display.addEntry(rotationEntry);
+    var intervalEntry = entries.startIntField(
         Component.translatable("starrylist.config.rotation_interval"), values.rotationIntervalSeconds
     ).setMin(1).setMax(3600).setDefaultValue(20)
-        .setSaveConsumer(value -> values.rotationIntervalSeconds = value).build());
-    display.addEntry(entries.startStrList(
-        Component.translatable("starrylist.config.default_boards"), values.defaultBoards
-    ).setDefaultValue(StarryListConfigData.DEFAULT.display().defaultBoards())
-        .setSaveConsumer(value -> values.defaultBoards = List.copyOf(value)).build());
+        .setSaveConsumer(value -> values.rotationIntervalSeconds = value).build();
+    display.addEntry(intervalEntry);
+    var boardsEntry = new StarryListBoardListEntry(
+        values.defaultBoards,
+        StarryListConfigData.DEFAULT.display().defaultBoards(),
+        hiddenEntry::getValue,
+        value -> values.defaultBoards = List.copyOf(value)
+    );
+    display.addEntry(boardsEntry);
 
     ConfigCategory all = builder.getOrCreateCategory(Component.translatable("starrylist.config.all"));
-    all.addEntry(entries.startTextDescription(
-        Component.translatable("starrylist.config.all_summary",
-            values.language.getLangKey(),
-            values.adminPermissionLevel,
-            values.rotationEnabled,
-            values.rotationIntervalSeconds,
-            String.join(", ", values.defaultBoards))
-    ).build());
+    all.addEntry(new StarryListSummaryEntry(() -> Component.translatable(
+        "starrylist.config.all_summary",
+        languageEntry.getValue().getLangKey(),
+        permissionEntry.getValue(),
+        rotationEntry.getValue(),
+        intervalEntry.getValue(),
+        String.join(", ", boardsEntry.getValue())
+    )));
 
     builder.setSavingRunnable(() -> save(values));
     return builder.build();
