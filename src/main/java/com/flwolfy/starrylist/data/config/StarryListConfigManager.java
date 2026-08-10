@@ -4,8 +4,6 @@ import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.data.lang.StarryListLang;
 import com.flwolfy.starrylist.data.lang.StarryListLangAdapter;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
-import com.flwolfy.starrylist.data.script.StarryListScript;
-import com.flwolfy.starrylist.data.script.StarryListScriptAdapter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -26,12 +24,12 @@ import net.fabricmc.loader.api.FabricLoader;
 /** Loads, validates, atomically updates, and persists the server configuration. */
 public final class StarryListConfigManager {
 
-  public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("starrylist.json");
+  private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir()
+      .resolve("starrylist.json");
 
   private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
   private static final Gson GSON = new GsonBuilder()
       .registerTypeAdapter(StarryListLang.class, new StarryListLangAdapter())
-      .registerTypeAdapter(StarryListScript.class, new StarryListScriptAdapter())
       .setPrettyPrinting()
       .create();
   private static final StarryListConfigManager INSTANCE = new StarryListConfigManager();
@@ -44,10 +42,20 @@ public final class StarryListConfigManager {
     StarryListLangManager.getInstance().setLanguage(data.general().language());
   }
 
+  /**
+   * Returns the process-wide configuration owner.
+   *
+   * @return process-wide configuration manager
+   */
   public static StarryListConfigManager getInstance() {
     return INSTANCE;
   }
 
+  /**
+   * Returns the currently active configuration.
+   *
+   * @return current validated immutable configuration snapshot
+   */
   public StarryListConfigData data() {
     LOCK.readLock().lock();
     try {
@@ -57,10 +65,20 @@ public final class StarryListConfigManager {
     }
   }
 
+  /**
+   * Sets the callback invoked after a replacement configuration becomes active.
+   *
+   * @param listener apply callback, or {@code null} to clear it
+   */
   public void setApplyListener(Consumer<StarryListConfigData> listener) {
     applyListener = listener == null ? ignored -> {} : listener;
   }
 
+  /**
+   * Reloads and validates the configuration file without replacing a valid active snapshot on failure.
+   *
+   * @return whether the file was successfully loaded and activated
+   */
   public boolean reload() {
     LOCK.writeLock().lock();
     try {
@@ -77,6 +95,12 @@ public final class StarryListConfigManager {
     }
   }
 
+  /**
+   * Validates, activates, and persists a replacement configuration.
+   *
+   * @param replacement proposed configuration snapshot
+   * @return whether the replacement was successfully saved and activated
+   */
   public boolean update(StarryListConfigData replacement) {
     if (replacement == null) return false;
     List<String> invalid = replacement.validate();

@@ -9,9 +9,14 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import java.lang.reflect.Type;
 
-public class StarryListLangAdapter
+/** Serializes supported language values as their resource-pack locale keys. */
+public final class StarryListLangAdapter
     implements JsonSerializer<StarryListLang>, JsonDeserializer<StarryListLang> {
 
+  /** Creates a Gson adapter for StarryList language values. */
+  public StarryListLangAdapter() {}
+
+  /** {@inheritDoc} */
   @Override
   public JsonElement serialize(
       StarryListLang source,
@@ -21,6 +26,7 @@ public class StarryListLangAdapter
     return new JsonPrimitive(source.getLangKey());
   }
 
+  /** {@inheritDoc} */
   @Override
   public StarryListLang deserialize(
       JsonElement json,

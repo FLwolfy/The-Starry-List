@@ -21,11 +21,16 @@ import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.permissions.PermissionSet;
 
-/** Implements administrative reload, score, profile, and orphan-management commands. */
+/** Implements administrative reload, score, and profile commands. */
 public final class StarryListAdminCommand {
 
   private StarryListAdminCommand() {}
 
+  /**
+   * Registers the administrative {@code /starryadmin} command tree.
+   *
+   * @param dispatcher server command dispatcher
+   */
   public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
     dispatcher.register(literal("starryadmin")
         .requires(StarryListAdminCommand::hasPermission)
@@ -59,10 +64,7 @@ public final class StarryListAdminCommand {
             .then(literal("reset")
                 .then(argument("targets", EntityArgument.players())
                     .executes(StarryListAdminCommand::profileReset)))
-            .then(literal("reset-all").executes(StarryListAdminCommand::profileResetAll)))
-        .then(literal("prune")
-            .executes(StarryListAdminCommand::prunePreview)
-            .then(literal("confirm").executes(StarryListAdminCommand::pruneConfirm))));
+            .then(literal("reset-all").executes(StarryListAdminCommand::profileResetAll))));
   }
 
   private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String>
@@ -172,22 +174,6 @@ public final class StarryListAdminCommand {
     int affected = runtime.state().clearProfiles();
     runtime.display().updateAll(true);
     context.getSource().sendSuccess(() -> text("starrylist.admin.profile_reset", affected), true);
-    return affected;
-  }
-
-  private static int prunePreview(CommandContext<CommandSourceStack> context) {
-    var orphans = runtime().state().orphanObjectives();
-    context.getSource().sendSuccess(() -> text(
-        "starrylist.admin.prune_preview",
-        orphans.size(),
-        orphans.isEmpty() ? "-" : String.join(", ", orphans)
-    ), false);
-    return orphans.size();
-  }
-
-  private static int pruneConfirm(CommandContext<CommandSourceStack> context) {
-    int affected = runtime().scoreboardManager().prune();
-    context.getSource().sendSuccess(() -> text("starrylist.admin.pruned", affected), true);
     return affected;
   }
 

@@ -1,23 +1,14 @@
 package com.flwolfy.starrylist.scoreboard;
 
-import com.flwolfy.starrylist.data.config.StarryListConfigData;
-import com.flwolfy.starrylist.data.script.context.StarryListBoard;
-import java.util.List;
-
+/**
+ * Identifies one of the six fixed leaderboards and its vanilla scoreboard objective.
+ *
+ * @param id command and configuration identifier
+ * @param objectiveName vanilla scoreboard objective name
+ * @param displayName translated sidebar title
+ */
 public record StarryListBoardDefinition(
     String id,
     String objectiveName,
-    String displayName,
-    boolean builtIn,
-    boolean enabled,
-    List<StarryListConfigData.Source> sources
-) {
-
-  public StarryListBoardDefinition {
-    sources = List.copyOf(sources);
-  }
-
-  public StarryListBoard scriptView() {
-    return new StarryListBoard(id, displayName, objectiveName);
-  }
-}
+    String displayName
+) {}

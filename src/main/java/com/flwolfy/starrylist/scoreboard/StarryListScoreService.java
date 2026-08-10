@@ -16,6 +16,12 @@ public final class StarryListScoreService {
   private final MinecraftServer server;
   private final java.util.function.Supplier<StarryListBoardRegistry> registry;
 
+  /**
+   * Creates a score service for the active server and registry.
+   *
+   * @param server active Minecraft server
+   * @param registry current fixed leaderboard registry supplier
+   */
   public StarryListScoreService(
       MinecraftServer server,
       java.util.function.Supplier<StarryListBoardRegistry> registry
@@ -24,28 +30,56 @@ public final class StarryListScoreService {
     this.registry = registry;
   }
 
+  /**
+   * Reads a player's score, returning zero when no entry exists.
+   *
+   * @param boardId board identifier
+   * @param playerId player UUID
+   * @return current score
+   */
   public int get(String boardId, UUID playerId) {
     Objective objective = objective(boardId);
     ReadOnlyScoreInfo score = server.getScoreboard().getPlayerScoreInfo(holder(playerId), objective);
     return score == null ? 0 : score.value();
   }
 
+  /**
+   * Replaces a player's score and refreshes its display name.
+   *
+   * @param boardId board identifier
+   * @param player player to update
+   * @param value replacement score
+   * @return stored score
+   */
   public int set(String boardId, ServerPlayer player, int value) {
     return set(boardId, player.getUUID(), player.getGameProfile().name(), value);
   }
 
-  public int set(String boardId, UUID playerId, String displayName, int value) {
+  private int set(String boardId, UUID playerId, String displayName, int value) {
     ScoreAccess score = server.getScoreboard().getOrCreatePlayerScore(holder(playerId), objective(boardId));
     score.set(value);
     score.display(Component.literal(displayName));
     return value;
   }
 
+  /**
+   * Adds a delta to a player's score and refreshes its display name.
+   *
+   * @param boardId board identifier
+   * @param player player to update
+   * @param delta signed score delta
+   * @return updated score
+   * @throws IllegalArgumentException when the result exceeds the 32-bit integer range
+   */
   public int add(String boardId, ServerPlayer player, int delta) {
     return add(boardId, player.getUUID(), player.getGameProfile().name(), delta);
   }
 
-  /** Refreshes the vanilla display component attached to every existing StarryList score. */
+  /**
+   * Refreshes the vanilla display component attached to every existing StarryList score.
+   *
+   * @param player online player whose name should be refreshed
+   */
   public void remember(ServerPlayer player) {
     for (var board : registry.get().all()) {
       Objective objective = server.getScoreboard().getObjective(board.objectiveName());
@@ -56,7 +90,7 @@ public final class StarryListScoreService {
     }
   }
 
-  public int add(String boardId, UUID playerId, String displayName, int delta) {
+  private int add(String boardId, UUID playerId, String displayName, int delta) {
     int current = get(boardId, playerId);
     int next;
     try {
@@ -67,21 +101,33 @@ public final class StarryListScoreService {
     return set(boardId, playerId, displayName, next);
   }
 
+  /**
+   * Removes one player's entry from a leaderboard.
+   *
+   * @param boardId board identifier
+   * @param playerId player UUID
+   */
   public void reset(String boardId, UUID playerId) {
     server.getScoreboard().resetSinglePlayerScore(holder(playerId), objective(boardId));
   }
 
+  /**
+   * Removes every score entry from a leaderboard.
+   *
+   * @param boardId board identifier
+   * @return number of removed entries
+   */
   public int resetAll(String boardId) {
     ServerScoreboard scoreboard = server.getScoreboard();
     Objective objective = objective(boardId);
-    var entries = ListCopy.copy(scoreboard.listPlayerScores(objective));
+    var entries = java.util.List.copyOf(scoreboard.listPlayerScores(objective));
     entries.forEach(entry -> scoreboard.resetSinglePlayerScore(
         ScoreHolder.forNameOnly(entry.owner()), objective
     ));
     return entries.size();
   }
 
-  public Objective objective(String boardId) {
+  private Objective objective(String boardId) {
     StarryListBoardDefinition board = registry.get().get(boardId)
         .orElseThrow(() -> new IllegalArgumentException("Unknown board: " + boardId));
     Objective objective = server.getScoreboard().getObjective(board.objectiveName());
@@ -89,15 +135,7 @@ public final class StarryListScoreService {
     return objective;
   }
 
-  public static ScoreHolder holder(UUID playerId) {
+  private static ScoreHolder holder(UUID playerId) {
     return ScoreHolder.forNameOnly(playerId.toString());
-  }
-
-  private static final class ListCopy {
-    private static java.util.List<net.minecraft.world.scores.PlayerScoreEntry> copy(
-        java.util.Collection<net.minecraft.world.scores.PlayerScoreEntry> entries
-    ) {
-      return java.util.List.copyOf(entries);
-    }
   }
 }

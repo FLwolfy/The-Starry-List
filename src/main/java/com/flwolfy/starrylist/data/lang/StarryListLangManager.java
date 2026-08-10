@@ -39,16 +39,33 @@ public final class StarryListLangManager {
     }
   }
 
+  /**
+   * Returns the process-wide server translation owner.
+   *
+   * @return process-wide server translation manager
+   */
   public static StarryListLangManager getInstance() {
     return INSTANCE;
   }
 
+  /**
+   * Selects the language used to render server-side literal messages.
+   *
+   * @param language requested language
+   */
   public void setLanguage(StarryListLang language) {
     this.language = languages.containsKey(language.getLangKey())
         ? language
         : StarryListLang.ENGLISH;
   }
 
+  /**
+   * Renders a translated literal component with English and key fallbacks.
+   *
+   * @param key translation key
+   * @param arguments format arguments
+   * @return rendered literal component
+   */
   public Component text(String key, Object... arguments) {
     Map<String, String> selected = languages.getOrDefault(
         language.getLangKey(),

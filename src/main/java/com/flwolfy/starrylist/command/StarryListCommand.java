@@ -24,6 +24,11 @@ public final class StarryListCommand {
 
   private StarryListCommand() {}
 
+  /**
+   * Registers the player-facing {@code /starry} command tree.
+   *
+   * @param dispatcher server command dispatcher
+   */
   public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
     dispatcher.register(literal("starry")
         .executes(StarryListCommand::status)
@@ -81,14 +86,14 @@ public final class StarryListCommand {
 
   private static int boards(CommandContext<CommandSourceStack> context, int page) {
     StarryListRuntime runtime = requireRuntime(context);
-    List<?> all = runtime.registry().enabled();
+    List<?> all = runtime.registry().all().stream().toList();
     int pages = Math.max(1, (all.size() + 7) / 8);
     int selectedPage = Math.min(page, pages);
     int start = (selectedPage - 1) * 8;
     context.getSource().sendSuccess(() -> text(
         "starrylist.command.boards_header", selectedPage, pages
     ), false);
-    runtime.registry().enabled().stream().skip(start).limit(8).forEach(board ->
+    runtime.registry().all().stream().skip(start).limit(8).forEach(board ->
         context.getSource().sendSuccess(() -> Component.literal(
             board.id() + " - " + board.displayName()
         ), false)
@@ -224,8 +229,7 @@ public final class StarryListCommand {
   }
 
   private static boolean validBoards(StarryListRuntime runtime, List<String> ids) {
-    return ids.stream().allMatch(id -> runtime.registry().get(id)
-        .map(board -> board.enabled()).orElse(false));
+    return ids.stream().allMatch(id -> runtime.registry().get(id).isPresent());
   }
 
   private static ServerPlayer player(CommandContext<CommandSourceStack> context) {

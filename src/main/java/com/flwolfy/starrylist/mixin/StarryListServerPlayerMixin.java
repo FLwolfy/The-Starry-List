@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Converts vanilla-confirmed continuous movement statistic increments into travel events. */
 @Mixin(ServerPlayer.class)
-public abstract class StarryListServerPlayerMixin {
+abstract class StarryListServerPlayerMixin {
 
   private static final Set<String> STARRY_LIST$MOVEMENT_STATS = Set.of(
       "walk_one_cm",
@@ -41,7 +41,7 @@ public abstract class StarryListServerPlayerMixin {
       return;
     }
     if (STARRY_LIST$MOVEMENT_STATS.contains(id.getPath())) {
-      StarryListMod.onTravel((ServerPlayer) (Object) this, id.getPath(), amount);
+      StarryListMod.onTravel((ServerPlayer) (Object) this, amount);
     }
   }
 }

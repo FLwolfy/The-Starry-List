@@ -3,7 +3,7 @@
   "id": "the-starry-list",
   "version": "${version}",
   "name": "The-Starry-List",
-  "description": "A server-side leaderboard mod for mining, placing, kills, travel, and custom JEXL boards.",
+  "description": "A server-side leaderboard mod with six built-in boards for mining, placing, kills, deaths, and travel.",
   "authors": [
     "FLwolfy"
   ],

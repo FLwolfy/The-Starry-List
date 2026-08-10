@@ -24,6 +24,14 @@ public final class StarryListDisplayManager {
   private final Map<UUID, String> displayedObjectives = new HashMap<>();
   private long ticks;
 
+  /**
+   * Creates a display manager for per-player vanilla sidebar packets.
+   *
+   * @param server active Minecraft server
+   * @param state world-scoped player display state
+   * @param config active configuration supplier
+   * @param registry fixed leaderboard registry supplier
+   */
   public StarryListDisplayManager(
       MinecraftServer server,
       StarryListState state,
@@ -36,11 +44,18 @@ public final class StarryListDisplayManager {
     this.registry = registry;
   }
 
+  /** Advances sidebar rotation and updates every online player. */
   public void tick() {
     ticks++;
     for (ServerPlayer player : server.getPlayerList().getPlayers()) update(player, false);
   }
 
+  /**
+   * Recomputes and, when needed, sends one player's sidebar objective.
+   *
+   * @param player online player
+   * @param force whether to resend even if the selected objective is unchanged
+   */
   public void update(ServerPlayer player, boolean force) {
     EffectiveDisplay effective = effective(player.getUUID());
     Objective objective = null;
@@ -61,14 +76,30 @@ public final class StarryListDisplayManager {
     }
   }
 
+  /**
+   * Removes cached display state for a disconnecting player.
+   *
+   * @param player disconnecting player
+   */
   public void remove(ServerPlayer player) {
     displayedObjectives.remove(player.getUUID());
   }
 
+  /**
+   * Recomputes sidebar state for every online player.
+   *
+   * @param force whether to resend unchanged objectives
+   */
   public void updateAll(boolean force) {
     server.getPlayerList().getPlayers().forEach(player -> update(player, force));
   }
 
+  /**
+   * Resolves server defaults and a player's saved profile into effective display behavior.
+   *
+   * @param playerId player UUID
+   * @return effective display settings
+   */
   public EffectiveDisplay effective(UUID playerId) {
     StarryListConfigData.Display defaults = config.get().display();
     StarryListDisplayProfile profile = state.profile(playerId);
@@ -78,7 +109,7 @@ public final class StarryListDisplayManager {
     List<String> requested = profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
         ? defaults.defaultBoards() : profile.boards();
     List<String> available = StarryListConfigData.normalizeIds(requested).stream()
-        .filter(id -> registry.get().get(id).map(board -> board.enabled()).orElse(false))
+        .filter(id -> registry.get().get(id).isPresent())
         .distinct()
         .toList();
     boolean hidden = profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
@@ -93,6 +124,12 @@ public final class StarryListDisplayManager {
     );
   }
 
+  /**
+   * Returns a mutable-command starting profile, copying server defaults when necessary.
+   *
+   * @param playerId player UUID
+   * @return custom profile suitable for a player display edit
+   */
   public StarryListDisplayProfile editableProfile(UUID playerId) {
     StarryListDisplayProfile current = state.profile(playerId);
     if (current.mode() == StarryListDisplayProfile.Mode.CUSTOM) return current;
@@ -108,6 +145,14 @@ public final class StarryListDisplayManager {
     );
   }
 
+  /**
+   * Fully resolved sidebar settings used by the display packet scheduler.
+   *
+   * @param hidden whether the sidebar is hidden
+   * @param boards ordered available board identifiers
+   * @param rotationEnabled whether multiple boards rotate
+   * @param intervalSeconds active rotation interval in seconds
+   */
   public record EffectiveDisplay(
       boolean hidden,
       List<String> boards,
