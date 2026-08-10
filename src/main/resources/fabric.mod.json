@@ -1,30 +1,37 @@
 {
   "schemaVersion": 1,
-  "id": "starry-mining-list-rebuilt",
+  "id": "the-starry-list",
   "version": "${version}",
-  "name": "TheStarryMiningListrebuilt",
-  "description": "挖掘榜模组(重置)",
-  "authors": [],
-  "contact": {},
-  "license": "All-Rights-Reserved",
-  "icon": "assets/starry-mining-list-rebuilt/icon.png",
+  "name": "The-Starry-List",
+  "description": "A server-side leaderboard mod for mining, placing, kills, travel, and custom JEXL boards.",
+  "authors": [
+    "FLwolfy"
+  ],
+  "contact": {
+    "homepage": "https://github.com/FLwolfy/The-Starry-List",
+    "sources": "https://github.com/FLwolfy/The-Starry-List"
+  },
+  "license": "LGPL-3.0",
   "environment": "*",
   "entrypoints": {
-    "fabric-datagen": [
-    ],
-    "client": [
-      "xyz.mcsls.starryMiningListRebuilt.Client.StarryMiningListRebuiltClient"
-    ],
     "main": [
-      "xyz.mcsls.starryMiningListRebuilt.StarryMiningListRebuilt"
+      "com.flwolfy.starrylist.StarryListMod"
+    ],
+    "modmenu": [
+      "com.flwolfy.starrylist.modmenu.StarryListModMenu"
     ]
   },
   "mixins": [
-    "starry-mining-list-rebuilt.mixins.json"
+    "the-starry-list.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
-    "fabric": "*",
-    "minecraft": "${minecraft_version}"
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.1",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "cloth-config2": "*",
+    "modmenu": "*"
   }
 }
