@@ -61,15 +61,27 @@ public final class TravelDistanceBoard extends StarryListBoard {
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
-    ServerPlayerEvents.JOIN.register(this::initialize);
-    ServerPlayerEvents.LEAVE.register(player -> baselines.remove(player.getUUID()));
-
-    ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
-        initialize(newPlayer)
+    registrar.onActiveStateChanged(
+        () -> registrar.server().getPlayerList().getPlayers().forEach(this::initialize),
+        baselines::clear
+    );
+    registrar.listen("player_join", ServerPlayerEvents.JOIN, this::initialize);
+    registrar.listen(
+        "player_leave",
+        ServerPlayerEvents.LEAVE,
+        player -> baselines.remove(player.getUUID())
     );
 
-    ServerTickEvents.END_SERVER_TICK.register(server ->
-        server.getPlayerList().getPlayers().forEach(player -> sample(player, registrar))
+    registrar.listen(
+        "player_respawn",
+        ServerPlayerEvents.AFTER_RESPAWN,
+        (oldPlayer, newPlayer, alive) -> initialize(newPlayer)
+    );
+
+    registrar.listen(
+        "server_tick",
+        ServerTickEvents.END_SERVER_TICK,
+        server -> server.getPlayerList().getPlayers().forEach(player -> sample(player, registrar))
     );
   }
 

@@ -32,11 +32,15 @@ public final class PlayerKillsBoard extends StarryListBoard {
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
-    ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((level, killer, victim, source) -> {
-      var credited = source.getEntity() == null ? killer : source.getEntity();
-      if (credited instanceof ServerPlayer player && victim instanceof ServerPlayer) {
-        registrar.addAutomatic(player, 1);
-      }
-    });
+    registrar.listen(
+        "player_kill",
+        ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY,
+        (level, killer, victim, source) -> {
+          var credited = source.getEntity() == null ? killer : source.getEntity();
+          if (credited instanceof ServerPlayer player && victim instanceof ServerPlayer) {
+            registrar.addAutomatic(player, 1);
+          }
+        }
+    );
   }
 }

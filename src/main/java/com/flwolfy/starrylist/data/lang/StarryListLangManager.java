@@ -22,6 +22,7 @@ public final class StarryListLangManager {
 
   private final Map<String, Map<String, String>> languages = new HashMap<>();
   private final Set<String> warnedMissingKeys = ConcurrentHashMap.newKeySet();
+  private volatile Map<String, Map<String, String>> scriptLanguages = Map.of();
   private volatile StarryListLang language = StarryListLang.ENGLISH;
 
   private StarryListLangManager() {
@@ -81,7 +82,8 @@ public final class StarryListLangManager {
    */
   public Component textFor(String locale, String key, Object... arguments) {
     String normalized = locale == null ? "" : locale.toLowerCase(Locale.ROOT);
-    String selected = languages.containsKey(normalized) ? normalized : language.getLangKey();
+    String selected = languages.containsKey(normalized) || scriptLanguages.containsKey(normalized)
+        ? normalized : language.getLangKey();
     return render(selected, key, arguments);
   }
 
@@ -97,9 +99,34 @@ public final class StarryListLangManager {
     return textFor(language == null ? null : language.getLangKey(), key, arguments);
   }
 
+  /**
+   * Atomically replaces translations supplied by the active Groovy boards.
+   *
+   * @param translations locale maps containing script translation keys
+   */
+  public void replaceScriptTranslations(Map<String, Map<String, String>> translations) {
+    scriptLanguages = translations.entrySet().stream().collect(
+        java.util.stream.Collectors.toUnmodifiableMap(
+            Map.Entry::getKey,
+            entry -> Map.copyOf(entry.getValue())
+        )
+    );
+    warnedMissingKeys.clear();
+  }
+
   private Component render(String locale, String key, Object... arguments) {
+    String pattern = scriptLanguages.getOrDefault(locale, Map.of()).get(key);
+    if (pattern == null) {
+      pattern = scriptLanguages.getOrDefault(language.getLangKey(), Map.of()).get(key);
+    }
+    if (pattern == null) {
+      pattern = scriptLanguages.getOrDefault(
+          StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
+    }
     Map<String, String> selected = languages.getOrDefault(locale, Map.of());
-    String pattern = selected.get(key);
+    if (pattern == null) {
+      pattern = selected.get(key);
+    }
     if (pattern == null) {
       pattern = languages.getOrDefault(language.getLangKey(), Map.of()).get(key);
     }

@@ -32,7 +32,8 @@ public final class MiningBoard extends StarryListBoard {
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
-    PlayerBlockBreakEvents.AFTER.register((level, player, position, state, blockEntity) -> {
+    registrar.listen("block_break", PlayerBlockBreakEvents.AFTER,
+        (level, player, position, state, blockEntity) -> {
       if (player instanceof ServerPlayer serverPlayer) {
         registrar.addAutomatic(serverPlayer, 1);
       }

@@ -7,6 +7,7 @@ import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -24,6 +25,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
 
   private static final int BOARD_START_SLOT = 19;
   private static final int BOARDS_PER_PAGE = 7;
+  private static final List<WeakReference<StarryListPlayerSGUI>> OPEN_MENUS = new ArrayList<>();
 
   private final StarryListRuntime runtime;
   private int page;
@@ -31,6 +33,9 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   private StarryListPlayerSGUI(ServerPlayer player, StarryListRuntime runtime) {
     super(MenuType.GENERIC_9x5, player, false);
     this.runtime = runtime;
+    synchronized (OPEN_MENUS) {
+      OPEN_MENUS.add(new WeakReference<>(this));
+    }
     setTitle(text("starrylist.gui.title"));
     setLockPlayerInventory(true);
     render();
@@ -44,6 +49,27 @@ public final class StarryListPlayerSGUI extends SimpleGui {
    */
   public static void open(ServerPlayer player, StarryListRuntime runtime) {
     new StarryListPlayerSGUI(player, runtime).open();
+  }
+
+  /**
+   * Re-renders every currently reachable StarryList menu after a catalog replacement.
+   *
+   * @param runtime active server services
+   */
+  public static void refreshAll(StarryListRuntime runtime) {
+    synchronized (OPEN_MENUS) {
+      OPEN_MENUS.removeIf(reference -> {
+        StarryListPlayerSGUI gui = reference.get();
+        if (gui == null) {
+          return true;
+        }
+        if (gui.runtime == runtime) {
+          gui.render();
+        }
+
+        return false;
+      });
+    }
   }
 
   private void render() {
@@ -153,7 +179,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
 
   private GuiElementBuilder boardButton(
       StarryListBoard board,
-    boolean selected
+      boolean selected
   ) {
     GuiElementBuilder builder = new GuiElementBuilder(board.iconForGui())
         .setName(board.displayName().copy().withStyle(

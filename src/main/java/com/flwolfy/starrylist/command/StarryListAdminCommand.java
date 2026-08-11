@@ -5,6 +5,7 @@ import static net.minecraft.commands.Commands.literal;
 
 import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.StarryListRuntime;
+import com.flwolfy.starrylist.board.script.StarryListScriptManager;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import com.mojang.brigadier.CommandDispatcher;
@@ -21,7 +22,7 @@ import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.permissions.PermissionSet;
 
-/** Implements administrative reload, score, and profile commands. */
+/** Implements administrative reload, pruning, score, and profile commands. */
 public final class StarryListAdminCommand {
 
   private StarryListAdminCommand() {}
@@ -36,6 +37,11 @@ public final class StarryListAdminCommand {
         .requires(StarryListAdminCommand::hasPermission)
         .executes(context -> success(context, "starrylist.admin.help"))
         .then(literal("reload").executes(StarryListAdminCommand::reload))
+        .then(literal("prune").executes(StarryListAdminCommand::prune))
+        .then(literal("scripts")
+            .then(literal("validate").executes(StarryListAdminCommand::scriptsValidate))
+            .then(literal("reload").executes(StarryListAdminCommand::scriptsReload))
+            .then(literal("list").executes(StarryListAdminCommand::scriptsList)))
         .then(literal("score")
             .then(literal("get")
                 .then(boardArgument()
@@ -89,11 +95,85 @@ public final class StarryListAdminCommand {
   }
 
   private static int reload(CommandContext<CommandSourceStack> context) {
-    if (!StarryListConfigManager.getInstance().reload()) {
+    var result = StarryListScriptManager.getInstance().reloadAll(runtime());
+    if (!result.success()) {
+      StarryListMod.LOGGER.error("Combined reload failed: {}", result.message());
       return failure(context, "starrylist.admin.reload_failed");
     }
 
+    sendScriptWarnings(context);
     return success(context, "starrylist.admin.reload_success");
+  }
+
+  private static int scriptsValidate(CommandContext<CommandSourceStack> context) {
+    var result = StarryListScriptManager.getInstance().validate(runtime().registry());
+    return sendScriptResult(context, result);
+  }
+
+  private static int prune(CommandContext<CommandSourceStack> context) {
+    var result = runtime().pruneOrphanedData();
+    context.getSource().sendSuccess(() -> text(
+        "starrylist.admin.prune",
+        result.boardStateNamespaces(),
+        result.archivedScores()
+    ), true);
+    return Math.max(1, result.boardStateNamespaces() + result.archivedScores());
+  }
+
+  private static int scriptsReload(CommandContext<CommandSourceStack> context) {
+    var result = StarryListScriptManager.getInstance().reload(runtime());
+    int status = sendScriptResult(context, result);
+    if (result.success()) {
+      sendScriptWarnings(context);
+    }
+    return status;
+  }
+
+  private static int scriptsList(CommandContext<CommandSourceStack> context) {
+    var manager = StarryListScriptManager.getInstance();
+    var scripts = manager.list();
+    context.getSource().sendSuccess(() -> text(
+        "starrylist.admin.scripts.list_header",
+        scripts.size(),
+        manager.directory()
+    ), false);
+    for (var script : scripts) {
+      context.getSource().sendSuccess(() -> text(
+          "starrylist.admin.scripts.list_entry",
+          script.sourceFile(),
+          script.id(),
+          script.objective(),
+          script.activeSubscriptions(),
+          script.subscriptions()
+      ), false);
+    }
+
+    return Math.max(1, scripts.size());
+  }
+
+  private static int sendScriptResult(
+      CommandContext<CommandSourceStack> context,
+      StarryListScriptManager.OperationResult result
+  ) {
+    if (result.success()) {
+      context.getSource().sendSuccess(
+          () -> text("starrylist.admin.scripts.success", result.message()), false
+      );
+      return 1;
+    }
+
+    context.getSource().sendFailure(text("starrylist.admin.scripts.failed", result.message()));
+    return 0;
+  }
+
+  private static void sendScriptWarnings(CommandContext<CommandSourceStack> context) {
+    StarryListScriptManager.getInstance().inspections().stream()
+        .filter(value -> !value.valid())
+        .forEach(value -> context.getSource().sendFailure(text(
+            "starrylist.admin.scripts.skipped",
+            value.sourceFile(),
+            value.message()
+        )));
   }
 
   private static int scoreGet(CommandContext<CommandSourceStack> context)

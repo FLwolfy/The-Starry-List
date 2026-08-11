@@ -32,7 +32,7 @@ public final class DeathsBoard extends StarryListBoard {
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
-    ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+    registrar.listen("player_death", ServerLivingEntityEvents.AFTER_DEATH, (entity, source) -> {
       if (entity instanceof ServerPlayer player) {
         registrar.addAutomatic(player, 1);
       }

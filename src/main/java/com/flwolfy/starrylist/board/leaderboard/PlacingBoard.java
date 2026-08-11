@@ -45,16 +45,31 @@ public final class PlacingBoard extends StarryListBoard {
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
-    ServerPlayerEvents.JOIN.register(player -> attach(player, registrar));
-    ServerPlayerEvents.LEAVE.register(this::detach);
+    registrar.onActiveStateChanged(
+        () -> registrar.server().getPlayerList().getPlayers()
+            .forEach(player -> attach(player, registrar)),
+        this::detachAll
+    );
+    registrar.listen(
+        "player_join",
+        ServerPlayerEvents.JOIN,
+        player -> attach(player, registrar)
+    );
+    registrar.listen("player_leave", ServerPlayerEvents.LEAVE, this::detach);
 
-    ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-      detach(oldPlayer);
-      attach(newPlayer, registrar);
-    });
+    registrar.listen(
+        "player_respawn",
+        ServerPlayerEvents.AFTER_RESPAWN,
+        (oldPlayer, newPlayer, alive) -> {
+          detach(oldPlayer);
+          attach(newPlayer, registrar);
+        }
+    );
 
-    ServerTickEvents.END_SERVER_TICK.register(server ->
-        server.getPlayerList().getPlayers().forEach(player -> update(player, registrar))
+    registrar.listen(
+        "server_tick",
+        ServerTickEvents.END_SERVER_TICK,
+        server -> server.getPlayerList().getPlayers().forEach(player -> update(player, registrar))
     );
   }
 
@@ -74,6 +89,11 @@ public final class PlacingBoard extends StarryListBoard {
     if (binding != null) {
       binding.listener().remove(binding.level());
     }
+  }
+
+  private void detachAll() {
+    listeners.values().forEach(binding -> binding.listener().remove(binding.level()));
+    listeners.clear();
   }
 
   private void update(ServerPlayer player, StarryListBoardRegistrar registrar) {

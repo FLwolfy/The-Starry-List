@@ -35,9 +35,12 @@ public final class StarryListBoardRegistry {
   private static final Pattern OBJECTIVE_PATTERN = Pattern.compile("[a-z0-9_.-]+");
   private static volatile StarryListBoardRegistry instance;
 
-  private final List<StarryListBoard> boards;
-  private final Map<String, StarryListBoard> byId;
+  private final List<StarryListBoard> builtInBoards;
   private final Map<String, StarryListBoardRegistrar> registrars;
+  private volatile Catalog definitions;
+  private volatile Catalog catalog;
+  private volatile Set<String> disabledBoardIds = Set.of();
+  private volatile long revision;
   private boolean registered;
 
   private StarryListBoardRegistry() {
@@ -45,22 +48,23 @@ public final class StarryListBoardRegistry {
     discovered.sort(Comparator.comparingInt(StarryListBoard::order)
         .thenComparing(StarryListBoard::id));
     validate(discovered);
-    boards = List.copyOf(discovered);
+    builtInBoards = List.copyOf(discovered);
 
     Map<String, StarryListBoard> ids = new LinkedHashMap<>();
     Map<String, StarryListBoardRegistrar> handles = new HashMap<>();
-    for (StarryListBoard board : boards) {
+    for (StarryListBoard board : builtInBoards) {
       ids.put(board.id(), board);
       handles.put(board.id(), new StarryListBoardRegistrar(board));
     }
 
-    byId = Map.copyOf(ids);
     registrars = Map.copyOf(handles);
+    definitions = new Catalog(builtInBoards, Map.copyOf(ids));
+    catalog = definitions;
 
     StarryListMod.LOGGER.info(
         "Discovered {} StarryList boards: {}",
-        boards.size(),
-        boards.stream().map(StarryListBoard::id).toList()
+        builtInBoards.size(),
+        builtInBoards.stream().map(StarryListBoard::id).toList()
     );
   }
 
@@ -90,7 +94,7 @@ public final class StarryListBoardRegistry {
       return;
     }
 
-    for (StarryListBoard board : boards) {
+    for (StarryListBoard board : builtInBoards) {
       try {
         board.register(registrars.get(board.id()));
       } catch (RuntimeException | LinkageError exception) {
@@ -113,7 +117,7 @@ public final class StarryListBoardRegistry {
       return Optional.empty();
     }
 
-    return Optional.ofNullable(byId.get(id.trim().toLowerCase(Locale.ROOT)));
+    return Optional.ofNullable(catalog.byId().get(id.trim().toLowerCase(Locale.ROOT)));
   }
 
   /**
@@ -122,7 +126,7 @@ public final class StarryListBoardRegistry {
    * @return the immutable board list
    */
   public List<StarryListBoard> all() {
-    return boards;
+    return catalog.boards();
   }
 
   /**
@@ -131,7 +135,39 @@ public final class StarryListBoardRegistry {
    * @return the ordered identifiers
    */
   public List<String> ids() {
-    return boards.stream().map(StarryListBoard::id).toList();
+    return catalog.boards().stream().map(StarryListBoard::id).toList();
+  }
+
+  /**
+   * Finds a discovered board regardless of whether it is currently loaded.
+   *
+   * @param id the board identifier
+   * @return the matching discovered board, if present
+   */
+  public Optional<StarryListBoard> definition(String id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+
+    return Optional.ofNullable(definitions.byId().get(id.trim().toLowerCase(Locale.ROOT)));
+  }
+
+  /**
+   * Returns every discovered board in canonical order.
+   *
+   * @return immutable discovered board list
+   */
+  public List<StarryListBoard> definitions() {
+    return definitions.boards();
+  }
+
+  /**
+   * Returns every discovered board identifier in canonical order.
+   *
+   * @return immutable discovered identifier list
+   */
+  public List<String> definitionIds() {
+    return definitions.boards().stream().map(StarryListBoard::id).toList();
   }
 
   /**
@@ -141,7 +177,7 @@ public final class StarryListBoardRegistry {
    * @return whether a registered board owns the name
    */
   public boolean ownsObjective(String objectiveName) {
-    return objectiveName != null && boards.stream()
+    return objectiveName != null && catalog.boards().stream()
         .anyMatch(board -> board.objectiveName().equals(objectiveName));
   }
 
@@ -161,7 +197,80 @@ public final class StarryListBoardRegistry {
         .map(value -> value.trim().toLowerCase(Locale.ROOT))
         .filter(value -> !value.isBlank())
         .collect(java.util.stream.Collectors.toSet());
-    return boards.stream().map(StarryListBoard::id).filter(requested::contains).toList();
+    return definitions.boards().stream().map(StarryListBoard::id)
+        .filter(requested::contains).toList();
+  }
+
+  /**
+   * Validates script boards against the immutable built-in catalog without changing it.
+   *
+   * @param scriptBoards complete proposed script board set
+   */
+  public void validateScriptBoards(List<? extends StarryListBoard> scriptBoards) {
+    buildCatalog(scriptBoards);
+  }
+
+  /**
+   * Atomically replaces the complete script board overlay.
+   *
+   * @param scriptBoards complete validated script board set
+   */
+  public synchronized void replaceScriptBoards(List<? extends StarryListBoard> scriptBoards) {
+    definitions = buildCatalog(scriptBoards);
+    catalog = filterActive(definitions, disabledBoardIds);
+    revision++;
+  }
+
+  /**
+   * Atomically applies the configured board-loading state.
+   *
+   * @param disabledIds discovered board identifiers to exclude from gameplay
+   */
+  public synchronized void applyDisabledBoards(Set<String> disabledIds) {
+    Set<String> replacement = disabledIds == null ? Set.of() : Set.copyOf(disabledIds);
+    Catalog active = filterActive(definitions, replacement);
+    if (replacement.equals(disabledBoardIds)
+        && active.boards().equals(catalog.boards())) {
+      return;
+    }
+
+    disabledBoardIds = replacement;
+    catalog = active;
+    registrars.forEach((id, registrar) -> registrar.setActive(!replacement.contains(id)));
+    revision++;
+  }
+
+  /**
+   * Returns the revision of the dynamic catalog.
+   *
+   * @return catalog revision incremented after every script commit
+   */
+  public long revision() {
+    return revision;
+  }
+
+  private Catalog buildCatalog(List<? extends StarryListBoard> scriptBoards) {
+    List<StarryListBoard> combined = new ArrayList<>(builtInBoards);
+    combined.addAll(scriptBoards);
+    combined.sort(Comparator.comparingInt(StarryListBoard::order)
+        .thenComparing(StarryListBoard::id));
+    validate(combined);
+
+    Map<String, StarryListBoard> ids = new LinkedHashMap<>();
+    for (StarryListBoard board : combined) {
+      ids.put(board.id(), board);
+    }
+
+    return new Catalog(List.copyOf(combined), Map.copyOf(ids));
+  }
+
+  private static Catalog filterActive(Catalog source, Set<String> disabledIds) {
+    List<StarryListBoard> boards = source.boards().stream()
+        .filter(board -> !disabledIds.contains(board.id()))
+        .toList();
+    Map<String, StarryListBoard> ids = new LinkedHashMap<>();
+    boards.forEach(board -> ids.put(board.id(), board));
+    return new Catalog(boards, Map.copyOf(ids));
   }
 
   private static List<StarryListBoard> discover() {
@@ -298,6 +407,9 @@ public final class StarryListBoardRegistry {
       if (!orders.add(board.order())) {
         throw new IllegalStateException("Duplicate board order: " + board.order());
       }
+      if (board instanceof com.flwolfy.starrylist.board.script.StarryListScriptBoard) {
+        continue;
+      }
       for (StarryListLang language : StarryListLang.values()) {
         try {
           if (board.presentation(language) == null) {
@@ -311,5 +423,8 @@ public final class StarryListBoardRegistry {
         }
       }
     }
+  }
+
+  private record Catalog(List<StarryListBoard> boards, Map<String, StarryListBoard> byId) {
   }
 }

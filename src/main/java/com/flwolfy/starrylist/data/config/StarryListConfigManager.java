@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.data.config;
 
 import com.flwolfy.starrylist.StarryListMod;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.data.lang.StarryListLang;
 import com.flwolfy.starrylist.data.lang.StarryListLangAdapter;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
@@ -14,11 +15,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import net.fabricmc.loader.api.FabricLoader;
 
 /** Loads, validates, atomically updates, and persists the server configuration. */
@@ -39,6 +44,7 @@ public final class StarryListConfigManager {
 
   private StarryListConfigManager() {
     data = loadAtStartup();
+    applyBoardLoading(data);
     StarryListLangManager.getInstance().setLanguage(data.general().language());
   }
 
@@ -66,6 +72,25 @@ public final class StarryListConfigManager {
   }
 
   /**
+   * Reads and canonicalizes the configuration file for an editor without applying it.
+   *
+   * @return editable file snapshot, or the active snapshot if the file cannot be read
+   */
+  public StarryListConfigData loadForEditing() {
+    LOCK.writeLock().lock();
+    try {
+      LoadResult result = readAndMerge(Set.of());
+      saveStatic(result.data());
+      return result.data();
+    } catch (Exception exception) {
+      StarryListMod.LOGGER.error("Failed to load StarryList config for editing", exception);
+      return data;
+    } finally {
+      LOCK.writeLock().unlock();
+    }
+  }
+
+  /**
    * Sets the callback invoked after a replacement configuration becomes active.
    *
    * @param listener apply callback, or {@code null} to clear it
@@ -80,20 +105,32 @@ public final class StarryListConfigManager {
    * @return whether the file was successfully loaded and activated
    */
   public boolean reload() {
-    LOCK.writeLock().lock();
-    try {
-      LoadResult result = readAndValidate(false);
-      if (!result.valid()) {
-        return false;
-      }
+    return reloadRemoving(Set.of());
+  }
 
+  /**
+   * Reloads the configuration while accepting identifiers removed by the same script transaction.
+   *
+   * @param removedBoardIds script identifiers to remove before validation
+   * @return whether the file was successfully loaded and activated
+   */
+  public boolean reloadRemoving(Set<String> removedBoardIds) {
+    LOCK.writeLock().lock();
+    StarryListConfigData previous = data;
+    try {
+      LoadResult result = readAndMerge(removedBoardIds);
       activate(result.data());
-      if (result.normalized()) {
-        saveStatic(result.data());
-      }
+      saveStatic(result.data());
 
       return true;
     } catch (Exception exception) {
+      if (data != previous) {
+        try {
+          activate(previous);
+        } catch (RuntimeException rollbackFailure) {
+          exception.addSuppressed(rollbackFailure);
+        }
+      }
       StarryListMod.LOGGER.error("Failed to reload StarryList config", exception);
       return false;
     } finally {
@@ -140,15 +177,90 @@ public final class StarryListConfigManager {
     }
   }
 
+  /**
+   * Validates and persists a configuration without changing the active runtime snapshot.
+   *
+   * <p>The saved values become active only after {@link #reload()} or the next game startup.</p>
+   *
+   * @param replacement proposed configuration file contents
+   * @return whether the replacement was successfully validated and saved
+   */
+  public boolean savePending(StarryListConfigData replacement) {
+    if (replacement == null) {
+      return false;
+    }
+
+    List<String> invalid = replacement.validate();
+    if (!invalid.isEmpty()) {
+      StarryListMod.LOGGER.error("Refusing invalid pending StarryList config fields: {}", invalid);
+      return false;
+    }
+
+    replacement = canonicalize(replacement);
+    LOCK.writeLock().lock();
+    try {
+      saveStatic(replacement);
+      return true;
+    } catch (Exception exception) {
+      StarryListMod.LOGGER.error("Failed to save pending StarryList config", exception);
+      return false;
+    } finally {
+      LOCK.writeLock().unlock();
+    }
+  }
+
+  /**
+   * Removes unavailable script board identifiers from the active default configuration.
+   *
+   * @param boardIds identifiers to remove
+   * @return whether the cleaned configuration was activated and saved
+   */
+  public boolean removeBoards(Set<String> boardIds) {
+    if (boardIds.isEmpty()) {
+      return true;
+    }
+
+    StarryListConfigData current = data();
+    List<String> enabled = current.display().enabledBoards().stream()
+        .filter(id -> !boardIds.contains(id))
+        .toList();
+    List<String> disabled = current.boards().disabledBoards().stream()
+        .filter(id -> !boardIds.contains(id))
+        .toList();
+    if (enabled.equals(current.display().enabledBoards())
+        && disabled.equals(current.boards().disabledBoards())) {
+      return true;
+    }
+
+    return update(new StarryListConfigData(
+        current.general(),
+        new StarryListConfigData.Display(
+            current.display().hiddenByDefault(),
+            current.display().rotationEnabled(),
+            current.display().rotationIntervalSeconds(),
+            enabled
+        ),
+        new StarryListConfigData.Boards(disabled),
+        current.blacklist()
+    ));
+  }
+
   private void activate(StarryListConfigData replacement) {
     StarryListConfigData previous = data;
     data = replacement;
+    applyBoardLoading(replacement);
     StarryListLangManager.getInstance().setLanguage(replacement.general().language());
     try {
       applyListener.accept(replacement);
     } catch (RuntimeException exception) {
       data = previous;
+      applyBoardLoading(previous);
       StarryListLangManager.getInstance().setLanguage(previous.general().language());
+      try {
+        applyListener.accept(previous);
+      } catch (RuntimeException rollbackFailure) {
+        exception.addSuppressed(rollbackFailure);
+      }
       throw exception;
     }
   }
@@ -159,22 +271,11 @@ public final class StarryListConfigManager {
         saveStatic(StarryListConfigData.DEFAULT);
         return StarryListConfigData.DEFAULT;
       }
-      LoadResult result = readAndValidate(true);
-      if (result.valid()) {
-        if (result.normalized()) {
-          saveStatic(result.data());
-        }
-
-        return result.data();
-      }
-      backupInvalid();
-      saveStatic(StarryListConfigData.DEFAULT);
+      LoadResult result = readAndMerge(Set.of());
+      saveStatic(result.data());
+      return result.data();
     } catch (Exception exception) {
       StarryListMod.LOGGER.error("Failed to load StarryList config; using defaults", exception);
-      if (Files.exists(CONFIG_PATH)) {
-        backupInvalid();
-      }
-
       try {
         saveStatic(StarryListConfigData.DEFAULT);
       } catch (Exception saveException) {
@@ -185,47 +286,174 @@ public final class StarryListConfigManager {
     return StarryListConfigData.DEFAULT;
   }
 
-  private static LoadResult readAndValidate(boolean startup) throws Exception {
+  private static LoadResult readAndMerge(Set<String> removedBoardIds) throws Exception {
     try (Reader reader = Files.newBufferedReader(CONFIG_PATH, StandardCharsets.UTF_8)) {
-      JsonElement parsed = GSON.fromJson(reader, JsonElement.class);
-      if (parsed == null || !parsed.isJsonObject()) {
-        StarryListMod.LOGGER.error("StarryList config root must be an object");
-        return new LoadResult(StarryListConfigData.DEFAULT, false, false);
+      JsonObject target;
+      try {
+        JsonElement parsed = GSON.fromJson(reader, JsonElement.class);
+        target = parsed != null && parsed.isJsonObject()
+            ? parsed.getAsJsonObject() : new JsonObject();
+      } catch (RuntimeException exception) {
+        StarryListMod.LOGGER.warn(
+            "Could not parse StarryList config; replacing it with merged defaults",
+            exception
+        );
+        target = new JsonObject();
       }
-      JsonObject target = parsed.getAsJsonObject();
-      boolean normalized = false;
 
-      StarryListConfigData loaded = GSON.fromJson(target, StarryListConfigData.class);
-      List<String> invalid = loaded == null ? List.of("root") : loaded.validate();
-      if (!invalid.isEmpty()) {
-        StarryListMod.LOGGER.error("Invalid StarryList config fields: {}", invalid);
-        return new LoadResult(StarryListConfigData.DEFAULT, false, normalized);
-      }
-      if (loaded != null && loaded.display() != null && loaded.display().enabledBoards() != null) {
-        List<String> canonical = StarryListConfigData.normalizeIds(loaded.display().enabledBoards());
-        if (!canonical.equals(loaded.display().enabledBoards())) {
-          loaded = new StarryListConfigData(
-              loaded.general(),
-              new StarryListConfigData.Display(
-                  loaded.display().hiddenByDefault(),
-                  loaded.display().rotationEnabled(),
-                  loaded.display().rotationIntervalSeconds(),
-                  canonical
-              ),
-              loaded.blacklist()
-          );
-          normalized = true;
-        }
-      }
+      StarryListConfigData loaded = merge(target, removedBoardIds);
       StarryListMod.LOGGER.info("Loaded StarryList config from {}", CONFIG_PATH);
-      return new LoadResult(loaded, true, normalized);
-    } catch (Exception exception) {
-      if (!startup) {
-        StarryListMod.LOGGER.error("Could not parse StarryList config", exception);
-      }
-
-      throw exception;
+      return new LoadResult(loaded);
     }
+  }
+
+  private static StarryListConfigData merge(JsonObject root, Set<String> removedBoardIds) {
+    StarryListConfigData defaults = StarryListConfigData.DEFAULT;
+    JsonObject general = object(root, "general");
+    JsonObject display = object(root, "display");
+    JsonObject boards = object(root, "boards");
+    JsonObject blacklist = object(root, "blacklist");
+
+    StarryListLang language = language(general, "language", defaults.general().language());
+    int permission = integer(
+        general,
+        "adminPermissionLevel",
+        defaults.general().adminPermissionLevel(),
+        0,
+        4
+    );
+    boolean hidden = bool(
+        display, "hiddenByDefault", defaults.display().hiddenByDefault()
+    );
+    boolean rotation = bool(
+        display, "rotationEnabled", defaults.display().rotationEnabled()
+    );
+    int interval = integer(
+        display,
+        "rotationIntervalSeconds",
+        defaults.display().rotationIntervalSeconds(),
+        1,
+        3600
+    );
+    List<String> enabled = boardIds(
+        display.get("enabledBoards"),
+        defaults.display().enabledBoards(),
+        removedBoardIds
+    );
+    List<String> disabled = boardIds(
+        boards.get("disabledBoards"),
+        defaults.boards().disabledBoards(),
+        removedBoardIds
+    );
+    List<String> patterns = patterns(
+        blacklist.get("playerNamePatterns"),
+        defaults.blacklist().playerNamePatterns()
+    );
+
+    return new StarryListConfigData(
+        new StarryListConfigData.General(language, permission),
+        new StarryListConfigData.Display(hidden, rotation, interval, enabled),
+        new StarryListConfigData.Boards(disabled),
+        new StarryListConfigData.Blacklist(patterns)
+    );
+  }
+
+  private static JsonObject object(JsonObject parent, String key) {
+    JsonElement value = parent.get(key);
+    return value != null && value.isJsonObject() ? value.getAsJsonObject() : new JsonObject();
+  }
+
+  private static StarryListLang language(
+      JsonObject object,
+      String key,
+      StarryListLang fallback
+  ) {
+    try {
+      JsonElement value = object.get(key);
+      return value == null ? fallback : GSON.fromJson(value, StarryListLang.class);
+    } catch (RuntimeException exception) {
+      return fallback;
+    }
+  }
+
+  private static boolean bool(JsonObject object, String key, boolean fallback) {
+    JsonElement value = object.get(key);
+    return value != null && value.isJsonPrimitive()
+        && value.getAsJsonPrimitive().isBoolean() ? value.getAsBoolean() : fallback;
+  }
+
+  private static int integer(
+      JsonObject object,
+      String key,
+      int fallback,
+      int minimum,
+      int maximum
+  ) {
+    try {
+      JsonElement value = object.get(key);
+      if (value == null || !value.isJsonPrimitive()
+          || !value.getAsJsonPrimitive().isNumber()) {
+        return fallback;
+      }
+      java.math.BigDecimal number = value.getAsBigDecimal().stripTrailingZeros();
+      if (number.scale() > 0) {
+        return fallback;
+      }
+      int result = number.intValueExact();
+      return result >= minimum && result <= maximum ? result : fallback;
+    } catch (ArithmeticException | NumberFormatException exception) {
+      return fallback;
+    }
+  }
+
+  private static List<String> boardIds(
+      JsonElement value,
+      List<String> fallback,
+      Set<String> removedBoardIds
+  ) {
+    if (value == null || !value.isJsonArray()) {
+      return fallback;
+    }
+
+    Set<String> known = new HashSet<>(StarryListBoardRegistry.getInstance().definitionIds());
+    known.addAll(com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
+        .previewIds());
+    Set<String> accepted = new HashSet<>();
+    for (JsonElement entry : value.getAsJsonArray()) {
+      if (!entry.isJsonPrimitive() || !entry.getAsJsonPrimitive().isString()) {
+        continue;
+      }
+      String id = entry.getAsString().trim().toLowerCase(Locale.ROOT);
+      if (!id.isBlank() && known.contains(id) && !removedBoardIds.contains(id)) {
+        accepted.add(id);
+      }
+    }
+
+    return StarryListConfigData.normalizeIds(new ArrayList<>(accepted));
+  }
+
+  private static List<String> patterns(JsonElement value, List<String> fallback) {
+    if (value == null || !value.isJsonArray()) {
+      return fallback;
+    }
+
+    List<String> accepted = new ArrayList<>();
+    for (JsonElement entry : value.getAsJsonArray()) {
+      if (!entry.isJsonPrimitive() || !entry.getAsJsonPrimitive().isString()) {
+        continue;
+      }
+      String expression = entry.getAsString();
+      if (expression.isBlank()) {
+        continue;
+      }
+      try {
+        Pattern.compile(expression, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+        accepted.add(expression);
+      } catch (PatternSyntaxException ignored) {
+      }
+    }
+
+    return List.copyOf(accepted);
   }
 
   private static StarryListConfigData canonicalize(StarryListConfigData value) {
@@ -241,7 +469,16 @@ public final class StarryListConfigManager {
             value.display().rotationIntervalSeconds(),
             StarryListConfigData.normalizeIds(value.display().enabledBoards())
         ),
+        new StarryListConfigData.Boards(
+            StarryListConfigData.normalizeIds(value.boards().disabledBoards())
+        ),
         value.blacklist()
+    );
+  }
+
+  private static void applyBoardLoading(StarryListConfigData value) {
+    StarryListBoardRegistry.getInstance().applyDisabledBoards(
+        Set.copyOf(value.boards().disabledBoards())
     );
   }
 
@@ -263,18 +500,5 @@ public final class StarryListConfigManager {
     }
   }
 
-  private static void backupInvalid() {
-    try {
-      String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now());
-      Files.move(
-          CONFIG_PATH,
-          CONFIG_PATH.resolveSibling("starrylist.invalid-" + timestamp + ".json"),
-          StandardCopyOption.REPLACE_EXISTING
-      );
-    } catch (Exception exception) {
-      StarryListMod.LOGGER.error("Failed to back up invalid StarryList config", exception);
-    }
-  }
-
-  private record LoadResult(StarryListConfigData data, boolean valid, boolean normalized) {}
+  private record LoadResult(StarryListConfigData data) {}
 }

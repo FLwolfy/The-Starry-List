@@ -13,6 +13,7 @@ final class StarryListClothConfigBuilder {
   boolean hiddenByDefault;
   boolean rotationEnabled;
   int rotationIntervalSeconds;
+  List<String> disabledBoards;
   List<String> enabledBoards;
   List<String> playerNamePatterns;
 
@@ -22,6 +23,7 @@ final class StarryListClothConfigBuilder {
     hiddenByDefault = data.display().hiddenByDefault();
     rotationEnabled = data.display().rotationEnabled();
     rotationIntervalSeconds = data.display().rotationIntervalSeconds();
+    disabledBoards = List.copyOf(data.boards().disabledBoards());
     enabledBoards = List.copyOf(data.display().enabledBoards());
     playerNamePatterns = List.copyOf(data.blacklist().playerNamePatterns());
   }
@@ -35,6 +37,7 @@ final class StarryListClothConfigBuilder {
             rotationIntervalSeconds,
             List.copyOf(enabledBoards)
         ),
+        new StarryListConfigData.Boards(List.copyOf(disabledBoards)),
         new StarryListConfigData.Blacklist(List.copyOf(playerNamePatterns))
     );
   }
@@ -50,5 +53,16 @@ final class StarryListClothConfigBuilder {
     }
 
     enabledBoards = StarryListConfigData.normalizeIds(next);
+  }
+
+  void setBoardLoaded(String boardId, boolean loaded) {
+    List<String> next = new ArrayList<>(disabledBoards);
+    if (loaded) {
+      next.remove(boardId);
+    } else if (!next.contains(boardId)) {
+      next.add(boardId);
+    }
+
+    disabledBoards = StarryListConfigData.normalizeIds(next);
   }
 }

@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist;
 
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
+import com.flwolfy.starrylist.board.script.StarryListScriptManager;
 import com.flwolfy.starrylist.command.StarryListAdminCommand;
 import com.flwolfy.starrylist.command.StarryListCommand;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
@@ -32,6 +33,7 @@ public final class StarryListMod implements ModInitializer {
   @Override
   public void onInitialize() {
     StarryListBoardRegistry boards = StarryListBoardRegistry.getInstance();
+    StarryListScriptManager.getInstance().initialize(boards);
     StarryListConfigManager config = StarryListConfigManager.getInstance();
     boards.registerAll();
 
@@ -41,6 +43,7 @@ public final class StarryListMod implements ModInitializer {
     });
 
     ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+      StarryListScriptManager.getInstance().validateActiveIcons();
       runtime = new StarryListRuntime(server);
       config.setApplyListener(ignored -> runtime.applyConfig());
       LOGGER.info("The-Starry-List is ready");

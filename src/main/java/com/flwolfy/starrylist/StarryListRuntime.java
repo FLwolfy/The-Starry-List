@@ -1,5 +1,6 @@
 package com.flwolfy.starrylist;
 
+import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.board.scoreboard.StarryListScoreService;
 import com.flwolfy.starrylist.board.scoreboard.StarryListScoreboardManager;
@@ -7,6 +8,10 @@ import com.flwolfy.starrylist.data.config.StarryListBlacklist;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import com.flwolfy.starrylist.data.state.StarryListState;
 import com.flwolfy.starrylist.display.StarryListSidebarManager;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import net.minecraft.server.MinecraftServer;
 
 /** Owns all world-bound StarryList services for the active server. */
@@ -19,6 +24,7 @@ public final class StarryListRuntime {
   private final StarryListScoreService scores;
   private final StarryListSidebarManager display;
   private final StarryListBoardRegistry registry;
+  private Map<String, StarryListBoard> activeBoards;
 
   /**
    * Creates all world-bound services for an active server.
@@ -40,6 +46,10 @@ public final class StarryListRuntime {
         this::registry
     );
     scoreboardManager.reconcile(registry);
+    scoreboardManager.restoreArchived(registry.all(), state);
+    activeBoards = index(registry.all());
+    com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
+        .applyActiveBoards(registry.ids());
     scores.reconcileBlacklist();
   }
 
@@ -47,10 +57,11 @@ public final class StarryListRuntime {
    * Rebuilds translated board metadata and refreshes every online sidebar after a config reload.
    */
   void applyConfig() {
+    reconcileCatalog();
     blacklist.apply(StarryListConfigManager.getInstance().data());
-    scoreboardManager.reconcile(registry);
     scores.reconcileBlacklist();
     display.updateAll(true);
+    com.flwolfy.starrylist.display.StarryListPlayerSGUI.refreshAll(this);
   }
 
   /** Advances per-player sidebar rotation by one server tick. */
@@ -101,5 +112,60 @@ public final class StarryListRuntime {
    */
   public StarryListSidebarManager display() {
     return display;
+  }
+
+  /**
+   * Permanently removes persisted data for board identifiers no longer discovered.
+   *
+   * @return counts of removed orphaned values
+   */
+  public StarryListState.PruneResult pruneOrphanedData() {
+    return state.pruneOrphanedBoards(Set.copyOf(registry.definitionIds()));
+  }
+
+  /**
+   * Archives objectives that must be removed before a script catalog replacement.
+   *
+   * @param boards old script definitions being removed or changing objective names
+   */
+  public void deactivateScriptBoards(List<? extends StarryListBoard> boards) {
+    scoreboardManager.archiveAndRemove(boards, state);
+  }
+
+  /**
+   * Reconciles all services after a script catalog replacement.
+   *
+   * @param removedIds script identifiers removed from the new catalog
+   */
+  public void activateScriptCatalog(Set<String> removedIds) {
+    state.removeBoardsFromProfiles(removedIds);
+    reconcileCatalog();
+    scores.reconcileBlacklist();
+    display.updateAll(true);
+    com.flwolfy.starrylist.display.StarryListPlayerSGUI.refreshAll(this);
+  }
+
+  private void reconcileCatalog() {
+    Map<String, StarryListBoard> next = index(registry.all());
+    List<StarryListBoard> deactivated = activeBoards.entrySet().stream()
+        .filter(entry -> {
+          StarryListBoard replacement = next.get(entry.getKey());
+          return replacement == null
+              || !replacement.objectiveName().equals(entry.getValue().objectiveName());
+        })
+        .map(Map.Entry::getValue)
+        .toList();
+    scoreboardManager.archiveAndRemove(deactivated, state);
+    scoreboardManager.reconcile(registry);
+    scoreboardManager.restoreArchived(registry.all(), state);
+    activeBoards = next;
+    com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
+        .applyActiveBoards(registry.ids());
+  }
+
+  private static Map<String, StarryListBoard> index(List<StarryListBoard> boards) {
+    Map<String, StarryListBoard> result = new LinkedHashMap<>();
+    boards.forEach(board -> result.put(board.id(), board));
+    return Map.copyOf(result);
   }
 }

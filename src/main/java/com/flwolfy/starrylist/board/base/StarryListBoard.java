@@ -80,6 +80,11 @@ public abstract class StarryListBoard {
   /**
    * Registers this board's statistic collectors during common mod initialization.
    *
+   * <p>Implementations should register Fabric callbacks through
+   * {@link StarryListBoardRegistrar#listen(String, net.fabricmc.fabric.api.event.Event, Object)}
+   * instead of calling Fabric {@code Event.register()} directly. Managed listeners remain
+   * registered once and can be safely suppressed when configuration hot-disables the board.</p>
+   *
    * @param registrar the services bound to this board
    */
   public abstract void register(StarryListBoardRegistrar registrar);

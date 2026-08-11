@@ -36,6 +36,7 @@ See the English document [here](./README.md).
 | Java | `25` 或更高 | 运行服务器和构建项目 |
 | Fabric Loader | `0.19.3` 或兼容版本 | 必需 |
 | Fabric API | `0.145.1+26.1` 或兼容版本 | 必需 |
+| Groovy | `5.0.7` | 已内嵌的受信任服务端脚本运行时 |
 | SGui | `2.0.0+26.1` | 已内嵌在 The-Starry-List 中，无需另行安装 |
 | Cloth Config | `26.1.154` | 仅本地配置界面可选 |
 | ModMenu | `18.0.0` | 仅本地配置界面可选 |
@@ -175,13 +176,16 @@ config/starrylist.json
       "mob_kills"
     ]
   },
+  "boards": {
+    "disabledBoards": []
+  },
   "blacklist": {
     "playerNamePatterns": []
   }
 }
 ```
 
-配置文件不存在时，模组会写入以上默认值。缺少普通字段时会补齐默认值并重新保存。配置无法解析或字段无效时，启动流程会备份无效文件并恢复默认配置；手动执行重载失败时则继续使用此前有效的活动配置。
+配置文件不存在时，模组会写入以上默认值。启动和手动重载都会逐字段合并：保留能读取且有效的值，删除无效值与未知字段，缺失值使用默认值，最后用完整的规范 JSON 覆盖原文件。若 JSON 根本无法解析，则使用默认配置覆盖；不会生成任何 `invalid-*` 备份文件。
 
 ### 通用设置（`general`）
 
@@ -212,7 +216,15 @@ deaths
 travel_distance
 ```
 
-JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块声明的顺序显示和轮转；关闭 `rotationEnabled` 时固定显示第一个已启用榜单。空数组是合法设置，表示当前没有 StarryList 榜单可显示。新加入的榜单不会自动写入现有配置，因此默认关闭。
+JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块声明的顺序显示和轮转；关闭 `rotationEnabled` 时固定显示第一个已启用榜单。空数组是合法设置，表示当前没有 StarryList 榜单可显示。
+
+### 榜单加载设置（`boards`）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `disabledBoards` | `string[]` | `[]` | 不加载到游戏中的已发现榜单；不允许重复或未知 ID |
+
+榜单加载状态与默认 profile 选择互相独立。已加载榜单会持有 objective、接收统计事件，并出现在配置界面和 SGUI；关闭加载后会归档并删除 objective、停用受管事件回调并退出运行时 UI，但 DEFAULT 和玩家 profile 中原有的选择仍会保留，以便重新开启时恢复。Cloth Config 分别提供“开启/关闭”“默认启用/默认停用”和“重置”。保存界面只写入 JSON 文件；执行 `/starryadmin reload` 后才会在当前世界中应用，无需重启。
 
 ### 黑名单（`blacklist`）
 
@@ -254,7 +266,7 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块
 
 菜单为五行容器：最上、最下两行为灰色玻璃，其余分隔与包边使用浅灰色玻璃；每页最多七张榜单卡片按注册顺序相邻排列。当前六榜布局保持不变；超过七个榜单时，左右包边槽显示循环翻页箭头。已启用卡片带附魔光效，停用卡片不发光。允许停用全部榜单，此时不会显示 StarryList 侧边栏，但榜单开关、轮转和间隔仍保存在 profile 中。底部控件可恢复服务器默认值、隐藏或显示侧边栏、切换轮转、通过带取消按钮的铁砧界面输入 `1`～`3600` 秒间隔，以及关闭菜单。成功修改会向操作者播放清脆的经验球音效，立即保存到当前世界 SavedData 并刷新侧边栏。
 
-菜单由内嵌在模组 JAR 中的 SGui 实现，只发送原版容器 packet；玩家客户端无需单独安装 SGui 或 The-Starry-List。菜单优先使用玩家上报的 `zh_cn` 或 `en_us`，否则回退到服务器配置语言，最后回退到英语。
+菜单由内嵌在模组 JAR 中的 SGui 实现，只发送原版容器 packet；玩家客户端无需单独安装 SGui 或 The-Starry-List。菜单与 scoreboard 始终使用 `general.language` 中选择的服务器语言。
 
 ---
 
@@ -267,7 +279,11 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块
 | 指令 | 功能 |
 |---|---|
 | `/starryadmin` | 显示管理员指令类别提示 |
-| `/starryadmin reload` | 重新读取、验证并应用配置 |
+| `/starryadmin reload` | 重载有效 Groovy 榜单与 JSON 配置；跳过并报告无效脚本 |
+| `/starryadmin prune` | 永久清理已不存在榜单 ID 对应的 SavedData |
+| `/starryadmin scripts validate` | 编译并验证全部启用脚本，但不应用 |
+| `/starryadmin scripts reload` | 只重载 Groovy 榜单，保留当前 JSON 设置 |
+| `/starryadmin scripts list` | 列出脚本来源、ID、objective 与订阅健康状态 |
 | `/starryadmin score get <boardId> <player>` | 查看在线玩家在指定榜单的分数和内部 UUID owner |
 | `/starryadmin score set <boardId> <targets> <value>` | 将目标玩家的分数替换为指定整数 |
 | `/starryadmin score add <boardId> <targets> <value>` | 对目标玩家的分数增加指定整数，可为负数 |
@@ -298,12 +314,45 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块
 
 - **全部**：第一个分类，以展开子分类形式包含下述所有真实配置项，并与独立分类同步编辑。
 - **常规**：服务端消息语言和管理员权限等级。
-- **显示**：默认隐藏、默认轮转、轮转间隔，以及一个根据动态注册表生成的可折叠榜单子分类；每榜都有独立开关和独立重置按钮。
+- **显示**：默认隐藏、默认轮转与轮转间隔。
+- **榜单**：包含可折叠的“内置榜单”和“自定义脚本榜单”两组；每榜都有独立开关和重置按钮，自定义组还提供脚本重载按钮，可在保留其他未保存编辑值的同时重建界面。
 - **黑名单**：可增删的玩家名正则列表，无效表达式会就地高亮；新增输入框有边框和示例占位提示。
 
-保存时使用与 JSON 配置相同的完整验证。保存成功或失败都会显示 toast，详细异常会写入日志。
+保存时使用与 JSON 配置相同的完整验证，但不会改变正在运行的服务器。保存成功或失败都会显示 toast，详细异常会写入日志；执行 `/starryadmin reload` 后才会应用已保存文件。
 
 该界面不能穿过网络修改远程服务器。即使玩家连接的远程服务器也安装了 The-Starry-List，客户端 ModMenu 页面编辑的仍是客户端自己的游戏目录。
+
+---
+
+## 可热重载的 Groovy 榜单
+
+受信任的服主无需重新构建模组即可新增榜单。系统会把 `config/starrylist/boards/` 中的 `*.groovy` 作为脚本候选。缺少 `ore.groovy` 时会自动生成一个已启用的默认榜单，统计 Fabric 通用 `ORES` 标签中的所有方块，包括正确加入该标签的其他模组矿石；不会再生成 disabled 示例文件。修改脚本后先执行 `/starryadmin scripts validate`，再执行 `/starryadmin scripts reload`。系统不会自动监听文件变化。
+
+每个文件必须只包含一个公开、非抽象的 `StarryListScriptBoard` 子类，并实现 `id()`、`objectiveName()`、唯一 `order()`、`icon()`、`translations()` 与 `subscribe(registrar)`。`translations()` 必须提供 `en_us`；语言键使用 `ll_cc` 格式，缺失时回退英语。同一榜单的所有语言必须拥有相同数量的 lore 行。元数据会与内置榜单及其他脚本一起校验。
+
+Fabric 回调必须通过热重载 registrar 声明：
+
+```groovy
+registrar.listen("stable_key", SomeFabricEvent.EVENT) { arguments ->
+  // 回调
+}
+
+registrar.listen("stable_key", SomeReturningEvent.EVENT, fallbackValue) { arguments ->
+  // 返回兼容结果
+}
+```
+
+Groovy 编译阶段会拒绝直接调用 Fabric `Event.register()`。稳定的 `boardId/key` 只创建一个永久 Java 代理；重载只替换其 Closure delegate，所以连续重载不会重复注册。回调抛出异常时只禁用该订阅，并在下次成功重载前返回 inactive result。若更换 Fabric Event 或 inactive result，必须使用新 key。
+
+`listen` 的第一个参数是当前榜单内部的稳定订阅 ID，并不是 Fabric Event 的名称。例如榜单 ID 为 `ore_mining` 时，`block_break` 会组成 `ore_mining/block_break`。同一榜单内的 key 必须唯一；只要仍表示同一个 Event 和 inactive result，重载前后就应保持不变。
+
+registrar 还提供 `addAutomatic`、`isBlacklisted`、`display`、`isEnabled`、按玩家隔离的 `state`、`accumulate`、`runtime` 与 `server`。自动计分沿用内置榜单的黑名单与整数饱和规则；榜单私有状态和黑名单归档继续按 board ID 保存。
+
+Cloth Config 的“刷新”按钮位于“自定义脚本榜单”标题栏右侧。它只会重新编译文件用于编辑器展示，并原地替换该子分类的条目，不会修改正在运行的榜单目录或重建 Screen。无效行会显示红色文字与贯穿线，整行操作被禁用，但不会阻止保存其他配置。服务端重载会用独立的新 classloader 分别编译脚本，加载所有有效脚本，跳过无效文件，并在聊天中以红色逐项报告文件名和错误。删除或跳过脚本会从服务器默认设置和玩家 profile 中清理其 ID，归档分数后删除 objective，同时保留榜单私有状态与黑名单归档。未来重新加入相同 ID 时，即使 objective 名称改变也会恢复分数。已打开的 SGUI 会立即刷新。
+
+StarryList 的持久状态保存在 `<世界目录>/data/the-starry-list/state.dat`。`/starryadmin prune` 只会永久删除当前已发现目录中不存在的 board ID 所属脚本私有状态、未活动 objective 归档和黑名单分数；Disabled 但仍被发现的榜单绝不会被清理。
+
+Groovy 脚本属于完全受信任的服务器代码，可调用公开的 Minecraft、Fabric、Java 及已安装模组 API，包括文件、网络、线程与反射；不提供沙箱或执行时限。脚本在 `registrar.listen()` 之外制造的线程、静态状态、反射注册与其他副作用无法由热重载撤销。运行中也不能新增 Mixin 或字节码注入点。
 
 ---
 
@@ -313,11 +362,11 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块
 
 绑定到当前榜单的 `StarryListBoardRegistrar` 提供带黑名单与整数溢出保护的自动计分、延迟 runtime 访问，以及每榜每玩家隔离的持久化状态。因此普通榜单不需要修改配置管理器、计分服务、scoreboard 管理器、sidebar、指令、Cloth Config 或 SGUI。注册表只在 Mod 初始化时递归发现一次，严格校验元数据和重复项；类加载或校验失败会携带具体类名或冲突值中止启动。
 
-在 `register(...)` 中使用 Fabric 事件或原版服务端事件设施。内置放置榜监听原版成功放置后发出的 `BLOCK_PLACE` game event；移动榜则在每个服务端 tick 结束时读取玩家原版移动统计的增量。因此项目不再包含任何 Mixin 类，也不需要维护公共 Mixin JSON。
+在 `register(...)` 中必须通过 `registrar.listen("stable_key", EVENT, callback)` 注册 Fabric 事件，不要直接调用 `EVENT.register(...)`。Fabric Event 没有移除回调的 API；`listen` 只安装一次永久代理，再根据 `boards.disabledBoards` 热启用或抑制代理，避免配置重载后出现重复回调或已关闭榜单仍运行回调。带返回值的事件使用 `registrar.listen("stable_key", EVENT, inactiveResult, callback)`。如果榜单还持有缓存或额外的原版监听器，可以使用 `onActiveStateChanged(...)` 在启用时重建、停用时释放。内置放置榜监听原版成功放置后发出的 `BLOCK_PLACE` game event；移动榜则在每个服务端 tick 结束时读取玩家原版移动统计的增量。因此项目不再包含任何 Mixin 类，也不需要维护公共 Mixin JSON。
 
 榜单默认使用 `starrylist.board.<id>.title` 和 `starrylist.board.<id>.description` 两个本地化键。将正文加入各语言 JSON 后，基类会通过 `StarryListLangManager` 解析，并依次支持玩家语言、服务端配置语言、英文和键名回退。需要多行 lore 的模块可以重写 `loreTranslationKeys()`，所有面向玩家的正文仍保存在语言资源中。
 
-新增榜单不会自动加入现有配置，只有将其 ID 加入 `display.enabledBoards` 后才会启用。全新配置仍只默认启用 `mining`、`placing` 与 `mob_kills`。Java 类需要重新构建并重启才能发现；`/starryadmin reload` 永远不会重新扫描模块或创建第二份注册表。
+新增榜单只要不在 `boards.disabledBoards` 中就会加载，但只有加入 `display.enabledBoards` 后才会进入 DEFAULT profile。全新配置仍只为该 profile 选择 `mining`、`placing` 与 `mob_kills`。Java 类需要重新构建并重启才能发现；`/starryadmin reload` 不会重新扫描 Java 模块，也不会创建第二份静态注册表。
 
 ---
 

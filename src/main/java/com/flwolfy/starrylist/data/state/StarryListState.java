@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -237,10 +238,161 @@ public final class StarryListState extends SavedData {
   }
 
   /**
+   * Removes unavailable board identifiers from every saved display profile.
+   *
+   * @param boardIds identifiers to remove
+   * @return number of changed profiles
+   */
+  public int removeBoardsFromProfiles(Set<String> boardIds) {
+    if (boardIds.isEmpty()) {
+      return 0;
+    }
+
+    int changed = 0;
+    for (Map.Entry<UUID, StarryListDisplayProfile> entry : profiles.entrySet()) {
+      StarryListDisplayProfile profile = entry.getValue();
+      List<String> boards = profile.boards().stream()
+          .filter(id -> !boardIds.contains(id))
+          .toList();
+      if (!boards.equals(profile.boards())) {
+        entry.setValue(new StarryListDisplayProfile(
+            profile.mode(),
+            boards,
+            profile.rotationEnabled(),
+            profile.rotationIntervalSeconds()
+        ));
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      setDirty();
+    }
+
+    return changed;
+  }
+
+  /**
+   * Permanently removes state belonging to board identifiers absent from the discovered catalog.
+   *
+   * @param retainedBoardIds board identifiers whose data must be retained
+   * @return counts of removed board-state namespaces and archived player scores
+   */
+  public PruneResult pruneOrphanedBoards(Set<String> retainedBoardIds) {
+    int namespaces = 0;
+    for (String storageId : List.copyOf(boardData.keySet())) {
+      String boardId = storageId.startsWith("__inactive__/")
+          ? storageId.substring("__inactive__/".length()) : storageId;
+      if (!retainedBoardIds.contains(boardId) && boardData.remove(storageId) != null) {
+        namespaces++;
+      }
+    }
+
+    int scores = 0;
+    for (String playerId : List.copyOf(archivedScores.keySet())) {
+      Map<String, Integer> values = archivedScores.get(playerId);
+      if (values == null) {
+        continue;
+      }
+
+      int before = values.size();
+      values.keySet().removeIf(boardId -> !retainedBoardIds.contains(boardId));
+      scores += before - values.size();
+      if (values.isEmpty()) {
+        archivedScores.remove(playerId);
+        archivedPlayerNames.remove(playerId);
+      }
+    }
+    if (namespaces > 0 || scores > 0) {
+      setDirty();
+    }
+
+    return new PruneResult(namespaces, scores);
+  }
+
+  /**
+   * Replaces the inactive-objective archive for one script board.
+   *
+   * @param boardId stable script board identifier
+   * @param scores scores keyed by vanilla scoreboard owner
+   */
+  public void archiveInactiveBoard(String boardId, Map<String, InactiveScore> scores) {
+    String storageId = inactiveStorageId(boardId);
+    if (scores.isEmpty()) {
+      if (boardData.remove(storageId) != null) {
+        setDirty();
+      }
+      return;
+    }
+
+    Map<String, net.minecraft.nbt.CompoundTag> stored = new HashMap<>();
+    scores.forEach((owner, score) -> {
+      net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+      tag.putInt("value", score.value());
+      tag.putString("displayName", score.displayName());
+      stored.put(owner, tag);
+    });
+    boardData.put(storageId, stored);
+    setDirty();
+  }
+
+  /**
+   * Returns inactive scores previously archived for one script board.
+   *
+   * @param boardId stable script board identifier
+   * @return immutable score archive keyed by vanilla scoreboard owner
+   */
+  public Map<String, InactiveScore> inactiveBoardScores(String boardId) {
+    Map<String, net.minecraft.nbt.CompoundTag> stored = boardData.get(inactiveStorageId(boardId));
+    if (stored == null) {
+      return Map.of();
+    }
+
+    Map<String, InactiveScore> result = new HashMap<>();
+    stored.forEach((owner, tag) -> result.put(owner, new InactiveScore(
+        tag.getIntOr("value", 0),
+        tag.getStringOr("displayName", owner)
+    )));
+    return Map.copyOf(result);
+  }
+
+  /**
+   * Clears the inactive-objective archive for one restored script board.
+   *
+   * @param boardId stable script board identifier
+   */
+  public void clearInactiveBoard(String boardId) {
+    if (boardData.remove(inactiveStorageId(boardId)) != null) {
+      setDirty();
+    }
+  }
+
+  private static String inactiveStorageId(String boardId) {
+    return "__inactive__/" + boardId;
+  }
+
+  /**
    * Immutable archived identity and per-board values.
    *
    * @param playerName the last known player name
    * @param scores the archived values by board identifier
    */
   public record ArchivedScores(String playerName, Map<String, Integer> scores) {}
+
+  /**
+   * One score retained while a script objective is absent.
+   *
+   * @param value score value
+   * @param displayName last visible owner name
+   */
+  public record InactiveScore(int value, String displayName) {
+  }
+
+  /**
+   * Counts data permanently removed by orphan pruning.
+   *
+   * @param boardStateNamespaces removed board-state and inactive-objective namespaces
+   * @param archivedScores removed blacklisted score values
+   */
+  public record PruneResult(int boardStateNamespaces, int archivedScores) {
+  }
 }

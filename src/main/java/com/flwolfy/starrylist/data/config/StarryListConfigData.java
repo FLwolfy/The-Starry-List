@@ -15,11 +15,13 @@ import java.util.regex.PatternSyntaxException;
  *
  * @param general general server settings
  * @param display default sidebar settings
+ * @param boards board loading settings
  * @param blacklist player-name exclusion patterns
  */
 public record StarryListConfigData(
     General general,
     Display display,
+    Boards boards,
     Blacklist blacklist
 ) {
 
@@ -59,6 +61,22 @@ public record StarryListConfigData(
   }
 
   /**
+   * Controls which discovered board modules are loaded into the active catalog.
+   *
+   * @param disabledBoards discovered board identifiers excluded from gameplay
+   */
+  public record Boards(List<String> disabledBoards) {
+    /**
+     * Creates board loading settings with an immutable disabled-board collection.
+     *
+     * @param disabledBoards discovered board identifiers excluded from gameplay
+     */
+    public Boards {
+      disabledBoards = disabledBoards == null ? null : List.copyOf(disabledBoards);
+    }
+  }
+
+  /**
    * Player-name patterns excluded from automatic scoring and visible objectives.
    *
    * @param playerNamePatterns case-insensitive Java regular expressions matched against full names
@@ -82,6 +100,7 @@ public record StarryListConfigData(
           20,
           List.of("mining", "placing", "mob_kills")
       ),
+      new Boards(List.of()),
       new Blacklist(List.of())
   );
 
@@ -125,9 +144,25 @@ public record StarryListConfigData(
       invalid.add("display.enabledBoards");
     }
 
-    Set<String> registeredIds = Set.copyOf(StarryListBoardRegistry.getInstance().ids());
+    Set<String> registeredIds = new HashSet<>(
+        StarryListBoardRegistry.getInstance().definitionIds()
+    );
+    registeredIds.addAll(
+        com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance().previewIds()
+    );
     if (normalizedInput.stream().anyMatch(id -> !registeredIds.contains(id))) {
       invalid.add("display.enabledBoards");
+    }
+    if (boards == null || boards.disabledBoards() == null) {
+      invalid.add("boards.disabledBoards");
+    } else {
+      List<String> disabled = normalizeInput(boards.disabledBoards());
+      if (boards.disabledBoards().stream().anyMatch(
+          value -> value == null || value.isBlank()
+      ) || new HashSet<>(disabled).size() != disabled.size()
+          || disabled.stream().anyMatch(id -> !registeredIds.contains(id))) {
+        invalid.add("boards.disabledBoards");
+      }
     }
     if (blacklist == null || blacklist.playerNamePatterns() == null) {
       invalid.add("blacklist.playerNamePatterns");
@@ -160,6 +195,25 @@ public record StarryListConfigData(
       return List.of();
     }
 
-    return StarryListBoardRegistry.getInstance().normalizeIds(ids);
+    List<String> normalized = new ArrayList<>(
+        StarryListBoardRegistry.getInstance().normalizeIds(ids)
+    );
+    Set<String> requested = new HashSet<>(normalizeInput(ids));
+    for (String previewId
+        : com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance().previewIds()) {
+      if (requested.contains(previewId) && !normalized.contains(previewId)) {
+        normalized.add(previewId);
+      }
+    }
+
+    return List.copyOf(normalized);
+  }
+
+  private static List<String> normalizeInput(List<String> ids) {
+    return ids.stream()
+        .filter(java.util.Objects::nonNull)
+        .map(value -> value.trim().toLowerCase(Locale.ROOT))
+        .filter(value -> !value.isBlank())
+        .toList();
   }
 }
