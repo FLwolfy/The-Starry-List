@@ -73,24 +73,24 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   }
 
   private void render() {
-    GuiElementBuilder filler = new GuiElementBuilder(Items.LIGHT_GRAY_STAINED_GLASS_PANE)
+    GuiElementBuilder filler = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = 0; slot < getVirtualSize(); slot++) {
       setSlot(slot, filler.build());
     }
 
-    GuiElementBuilder edge = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
+    GuiElementBuilder boardBackground = new GuiElementBuilder(Items.RED_STAINED_GLASS_PANE)
         .setName(Component.empty());
-    for (int slot = 0; slot < 9; slot++) {
-      setSlot(slot, edge.build());
-    }
-    for (int slot = 36; slot < 45; slot++) {
-      setSlot(slot, edge.build());
+    for (int slot = BOARD_START_SLOT; slot < BOARD_START_SLOT + BOARDS_PER_PAGE; slot++) {
+      setSlot(slot, boardBackground.build());
     }
 
     StarryListDisplayProfile saved = runtime.state().profile(player.getUUID());
     StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
     List<String> enabled = new ArrayList<>(editable.boards());
+    int pageCount = Math.max(1, (runtime.registry().all().size() + BOARDS_PER_PAGE - 1)
+        / BOARDS_PER_PAGE);
+    page = Math.floorMod(page, pageCount);
 
     setSlot(4, new GuiElementBuilder(Items.NETHER_STAR)
         .setName(text("starrylist.gui.status").copy().withStyle(ChatFormatting.GOLD))
@@ -100,11 +100,10 @@ public final class StarryListPlayerSGUI extends SimpleGui {
             runtime.display().effective(player.getUUID()).hidden()
                 ? text("starrylist.gui.state.hidden").getString()
                 : text("starrylist.gui.state.visible").getString()
-        )).build());
+        ))
+        .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
+        .build());
 
-    int pageCount = Math.max(1, (runtime.registry().all().size() + BOARDS_PER_PAGE - 1)
-        / BOARDS_PER_PAGE);
-    page = Math.floorMod(page, pageCount);
     int firstBoard = page * BOARDS_PER_PAGE;
     int lastBoard = Math.min(firstBoard + BOARDS_PER_PAGE, runtime.registry().all().size());
     for (int index = firstBoard; index < lastBoard; index++) {
@@ -114,11 +113,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
     }
 
     if (pageCount > 1) {
-      setSlot(18, new GuiElementBuilder(Items.ARROW)
+      setSlot(0, new GuiElementBuilder(Items.PLAYER_HEAD)
+          .setProfile("MHF_ArrowLeft")
           .setName(text("starrylist.gui.page.previous").copy().withStyle(ChatFormatting.AQUA))
           .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
           .setCallback(() -> changePage(-1, pageCount)).build());
-      setSlot(26, new GuiElementBuilder(Items.ARROW)
+      setSlot(8, new GuiElementBuilder(Items.PLAYER_HEAD)
+          .setProfile("MHF_ArrowRight")
           .setName(text("starrylist.gui.page.next").copy().withStyle(ChatFormatting.AQUA))
           .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
           .setCallback(() -> changePage(1, pageCount)).build());
@@ -133,7 +134,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
         }).build());
 
     boolean hidden = runtime.display().hiddenBySetting(player.getUUID());
-    setSlot(38, new GuiElementBuilder(hidden ? Items.LIME_DYE : Items.GRAY_DYE)
+    setSlot(38, new GuiElementBuilder(hidden ? Items.ENDER_PEARL : Items.ENDER_EYE)
         .setName(text(hidden ? "starrylist.gui.show" : "starrylist.gui.hide").copy()
             .withStyle(hidden ? ChatFormatting.GREEN : ChatFormatting.GRAY))
         .setCallback(() -> {
@@ -150,7 +151,9 @@ public final class StarryListPlayerSGUI extends SimpleGui {
           applyAndRender();
         }).build());
 
-    setSlot(40, new GuiElementBuilder(editable.rotationEnabled() ? Items.LIME_DYE : Items.RED_DYE)
+    setSlot(40, new GuiElementBuilder(
+        editable.rotationEnabled() ? Items.MUSIC_DISC_CAT : Items.MUSIC_DISC_CHIRP
+    )
         .setName(text("starrylist.gui.rotation").copy().withStyle(ChatFormatting.YELLOW))
         .addLoreLine(text(
             "starrylist.gui.rotation.state",
