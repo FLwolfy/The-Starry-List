@@ -24,16 +24,7 @@ public abstract class StarryListScriptBoard extends StarryListBoard {
    *
    * @param registrar the script-safe subscription and board service registrar
    */
-  public final void subscribe(StarryListScriptRegistrar registrar) {
-    subscribe((Object) registrar);
-  }
-
-  /**
-   * Declares reload-managed subscriptions using Groovy's untyped-parameter syntax.
-   *
-   * @param registrar a {@link StarryListScriptRegistrar} supplied to the script
-   */
-  public abstract void subscribe(Object registrar);
+  public abstract void subscribe(StarryListScriptRegistrar registrar);
 
   /**
    * Creates one localized presentation for use in a Groovy map literal.

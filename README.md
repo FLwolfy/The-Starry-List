@@ -332,17 +332,22 @@ The ModMenu implementation is organized by responsibility: `screen` owns lifecyc
 
 Trusted server owners can add boards without rebuilding the mod. Script candidates are the `*.groovy` files in `config/starrylist/boards/`. When `ore.groovy` is absent, the mod creates it as an enabled default board that counts every block in Fabric's conventional `ORES` tag, including compatible modded ores. No disabled example file is generated. Edit scripts, run `/starryadmin scripts validate`, and then run `/starryadmin scripts reload`. Files are not watched automatically.
 
-Each file must contain exactly one public concrete `StarryListScriptBoard` subclass. It supplies `id()`, `objectiveName()`, unique `order()`, `icon()`, `translations()`, and `subscribe(registrar)`. `translations()` must contain `en_us`; locale keys use the `ll_cc` form and missing locales fall back to English. All locales for a board must contain the same number of lore lines. Metadata is validated against built-in and other script boards.
+Each file must contain exactly one public concrete `StarryListScriptBoard` subclass. It supplies `id()`, `objectiveName()`, unique `order()`, `icon()`, `translations()`, and `subscribe(StarryListScriptRegistrar registrar)`. Import and retain the registrar parameter type so IDEs can provide completion, overload information, and Javadoc for the scripting API. `translations()` must contain `en_us`; locale keys use the `ll_cc` form and missing locales fall back to English. All locales for a board must contain the same number of lore lines. Metadata is validated against built-in and other script boards.
 
 Fabric callbacks must use the reload-managed registrar:
 
 ```groovy
-registrar.listen("stable_key", SomeFabricEvent.EVENT) { arguments ->
-  // callback
-}
+import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
 
-registrar.listen("stable_key", SomeReturningEvent.EVENT, fallbackValue) { arguments ->
-  // return a compatible result
+@Override
+void subscribe(StarryListScriptRegistrar registrar) {
+  registrar.listen("stable_key", SomeFabricEvent.EVENT) { arguments ->
+    // callback
+  }
+
+  registrar.listen("returning_key", SomeReturningEvent.EVENT, fallbackValue) { arguments ->
+    // return a compatible result
+  }
 }
 ```
 

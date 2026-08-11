@@ -26,7 +26,9 @@ public final class StarryListScriptRegistrar {
   }
 
   /**
-   * Registers a callback for a void-returning Fabric event.
+   * Registers a reload-managed callback for a void-returning Fabric event. Scripts must use this
+   * method instead of {@link Event#register(Object)} because Fabric events cannot remove callbacks;
+   * the stable key lets StarryList replace or deactivate the callback across script reloads.
    *
    * @param key stable subscription key unique within the board
    * @param event Fabric event instance
@@ -37,7 +39,9 @@ public final class StarryListScriptRegistrar {
   }
 
   /**
-   * Registers a callback for a value-returning Fabric event.
+   * Registers a reload-managed callback for a value-returning Fabric event. Scripts must use this
+   * method instead of {@link Event#register(Object)} because Fabric events cannot remove callbacks;
+   * the stable key lets StarryList replace or deactivate the callback across script reloads.
    *
    * @param key stable subscription key unique within the board
    * @param event Fabric event instance

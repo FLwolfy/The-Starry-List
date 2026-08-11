@@ -332,17 +332,22 @@ ModMenu 源码按职责归类：`screen` 管理界面生命周期与布局，`bu
 
 受信任的服主无需重新构建模组即可新增榜单。系统会把 `config/starrylist/boards/` 中的 `*.groovy` 作为脚本候选。缺少 `ore.groovy` 时会自动生成一个已启用的默认榜单，统计 Fabric 通用 `ORES` 标签中的所有方块，包括正确加入该标签的其他模组矿石；不会再生成 disabled 示例文件。修改脚本后先执行 `/starryadmin scripts validate`，再执行 `/starryadmin scripts reload`。系统不会自动监听文件变化。
 
-每个文件必须只包含一个公开、非抽象的 `StarryListScriptBoard` 子类，并实现 `id()`、`objectiveName()`、唯一 `order()`、`icon()`、`translations()` 与 `subscribe(registrar)`。`translations()` 必须提供 `en_us`；语言键使用 `ll_cc` 格式，缺失时回退英语。同一榜单的所有语言必须拥有相同数量的 lore 行。元数据会与内置榜单及其他脚本一起校验。
+每个文件必须只包含一个公开、非抽象的 `StarryListScriptBoard` 子类，并实现 `id()`、`objectiveName()`、唯一 `order()`、`icon()`、`translations()` 与 `subscribe(StarryListScriptRegistrar registrar)`。脚本必须导入并保留 registrar 参数类型，以便 IDE 提供脚本 API 的补全、重载信息与 Javadoc。`translations()` 必须提供 `en_us`；语言键使用 `ll_cc` 格式，缺失时回退英语。同一榜单的所有语言必须拥有相同数量的 lore 行。元数据会与内置榜单及其他脚本一起校验。
 
 Fabric 回调必须通过热重载 registrar 声明：
 
 ```groovy
-registrar.listen("stable_key", SomeFabricEvent.EVENT) { arguments ->
-  // 回调
-}
+import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
 
-registrar.listen("stable_key", SomeReturningEvent.EVENT, fallbackValue) { arguments ->
-  // 返回兼容结果
+@Override
+void subscribe(StarryListScriptRegistrar registrar) {
+  registrar.listen("stable_key", SomeFabricEvent.EVENT) { arguments ->
+    // 回调
+  }
+
+  registrar.listen("returning_key", SomeReturningEvent.EVENT, fallbackValue) { arguments ->
+    // 返回兼容结果
+  }
 }
 ```
 

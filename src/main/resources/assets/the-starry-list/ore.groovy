@@ -1,4 +1,5 @@
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
+import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags
 import net.minecraft.server.level.ServerPlayer
@@ -35,7 +36,7 @@ final class OreMiningBoard extends StarryListScriptBoard {
   }
 
   @Override
-  void subscribe(registrar) {
+  void subscribe(StarryListScriptRegistrar registrar) {
     registrar.listen("block_break", PlayerBlockBreakEvents.AFTER) {
       level, player, position, state, blockEntity ->
       if (player instanceof ServerPlayer && state.is(ConventionalBlockTags.ORES)) {
