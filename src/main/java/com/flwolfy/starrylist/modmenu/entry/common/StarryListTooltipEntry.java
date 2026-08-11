@@ -1,0 +1,66 @@
+package com.flwolfy.starrylist.modmenu.entry.common;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
+import me.shedaniel.clothconfig2.api.Tooltip;
+import me.shedaniel.math.Point;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+
+/** Adds Cloth Config tooltip behavior without using its deprecated internal base entry. */
+public abstract class StarryListTooltipEntry<T> extends AbstractConfigListEntry<T> {
+
+  private final Supplier<Optional<Component[]>> tooltipSupplier;
+
+  /**
+   * Creates a tooltip-capable entry.
+   *
+   * @param title localized field title
+   * @param tooltipSupplier localized tooltip supplier
+   */
+  protected StarryListTooltipEntry(
+      Component title,
+      Supplier<Optional<Component[]>> tooltipSupplier
+  ) {
+    super(title, false);
+    this.tooltipSupplier = tooltipSupplier;
+  }
+
+  @Override
+  public void extractRenderState(
+      GuiGraphicsExtractor graphics,
+      int index,
+      int y,
+      int x,
+      int entryWidth,
+      int entryHeight,
+      int mouseX,
+      int mouseY,
+      boolean hovered,
+      float delta
+  ) {
+    super.extractRenderState(
+        graphics, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, delta
+    );
+    if (!isMouseInside(mouseX, mouseY, x, y, entryWidth, entryHeight)) {
+      return;
+    }
+
+    List<Component> lines = new ArrayList<>();
+    if (tooltipSupplier != null) {
+      tooltipSupplier.get().ifPresent(values -> lines.addAll(List.of(values)));
+    }
+    if (!isEnabled()) {
+      lines.add(Component.translatable("text.cloth-config.disabled_tooltip"));
+    }
+    if (!lines.isEmpty()) {
+      addTooltip(Tooltip.of(
+          new Point(mouseX, mouseY),
+          wrapLinesToScreen(lines.toArray(Component[]::new))
+      ));
+    }
+  }
+}

@@ -315,12 +315,16 @@ With Cloth Config and ModMenu installed on the client, the configuration screen 
 - **All**: the first category, containing expanded, synchronized copies of every real setting below.
 - **General**: server message language and administrator permission level.
 - **Display**: default visibility, rotation, and interval.
-- **Boards**: separate collapsible Built-in and Custom script board groups. Every board has its own toggle and reset button; Custom also has a script reload button that rebuilds the screen without saving unrelated edits.
+- **Boards**: separate expanded Built-in and Custom script board groups. Every board has Loaded/Disabled, Default Shown/Hidden, and Reset controls. Custom also has a Refresh button that updates script previews in place without applying them to the running server.
 - **Blacklist**: an editable player-name regex list with inline highlighting; newly added input fields have a border and example placeholder.
 
 Saving uses the same complete validation as the JSON configuration, but does not change the running server. Success or failure appears as a toast, and detailed exceptions are written to the log. Run `/starryadmin reload` to apply the saved file.
 
 The screen cannot modify a remote server over the network. Even when a remote server also runs The-Starry-List, the client ModMenu page still edits only that client's game directory.
+
+The screen layout is generated recursively from `StarryListConfigData` records. Supported scalar fields automatically receive labels and tooltips using `starrylist.config.<full.path>` keys, while existing fields keep their current text through path metadata. New scalar types can be rendered by registering a `StarryListConfigEntryBuilder`; field paths can override a type builder, and a top-level record can register a `StarryListConfigSectionBuilder` when several fields must be consumed together. All and dedicated categories always receive separate widget instances bound to one `StarryListConfigEditorModel`, which keeps focus, IME composition, dynamic rows, validation, and reset state isolated while synchronizing their values.
+
+The ModMenu implementation is organized by responsibility: `screen` owns lifecycle and layout, `builder` owns extension contracts and dispatch, `model` owns record mapping and editable state, `section` owns multi-field sections, and `entry` is split into `common`, `scalar`, `board`, and `blacklist` widgets.
 
 ---
 
