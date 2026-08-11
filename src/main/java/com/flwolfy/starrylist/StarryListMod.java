@@ -1,8 +1,8 @@
 package com.flwolfy.starrylist;
 
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.command.StarryListAdminCommand;
 import com.flwolfy.starrylist.command.StarryListCommand;
-import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -15,14 +15,20 @@ import org.slf4j.LoggerFactory;
 /** The common StarryList entry point. All gameplay features remain server-side. */
 public final class StarryListMod implements ModInitializer {
 
-  /** Fabric mod identifier used by metadata, resources, logging, and SavedData. */
   public static final String MOD_ID = "the-starry-list";
-  /** Shared mod logger. */
   public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
   private static volatile StarryListRuntime runtime;
 
-  /** {@inheritDoc} */
+  /**
+   * Returns the services associated with the currently running server.
+   *
+   * @return active server runtime, or {@code null} while no server is running
+   */
+  public static StarryListRuntime getRuntime() {
+    return runtime;
+  }
+
   @Override
   public void onInitialize() {
     StarryListBoardRegistry boards = StarryListBoardRegistry.getInstance();
@@ -33,6 +39,7 @@ public final class StarryListMod implements ModInitializer {
       StarryListCommand.register(dispatcher);
       StarryListAdminCommand.register(dispatcher);
     });
+
     ServerLifecycleEvents.SERVER_STARTED.register(server -> {
       runtime = new StarryListRuntime(server);
       config.setApplyListener(ignored -> runtime.applyConfig());
@@ -44,36 +51,37 @@ public final class StarryListMod implements ModInitializer {
     });
     ServerTickEvents.END_SERVER_TICK.register(server -> {
       StarryListRuntime active = runtime;
-      if (active != null) active.tick();
+      if (active != null) {
+        active.tick();
+      }
     });
 
     ServerPlayerEvents.JOIN.register(StarryListMod::onJoin);
     ServerPlayerEvents.LEAVE.register(StarryListMod::onLeave);
     ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
       StarryListRuntime active = runtime;
-      if (active != null) active.display().update(newPlayer, true);
+      if (active != null) {
+        active.display().update(newPlayer, true);
+      }
     });
-  }
-
-  /**
-   * Returns the services associated with the currently running server.
-   *
-   * @return active server runtime, or {@code null} while no server is running
-   */
-  public static StarryListRuntime runtime() {
-    return runtime;
   }
 
   private static void onJoin(net.minecraft.server.level.ServerPlayer player) {
     StarryListRuntime active = runtime;
-    if (active == null) return;
+    if (active == null) {
+      return;
+    }
+
     active.scores().remember(player);
     active.display().update(player, true);
   }
 
   private static void onLeave(net.minecraft.server.level.ServerPlayer player) {
     StarryListRuntime active = runtime;
-    if (active == null) return;
+    if (active == null) {
+      return;
+    }
+
     active.display().remove(player);
   }
 }

@@ -10,10 +10,25 @@ import net.minecraft.world.item.Items;
 /** Counts non-player living entities killed by a player. */
 public final class MobKillsBoard extends StarryListBoard {
 
-  @Override public String id() { return "mob_kills"; }
-  @Override public String objectiveName() { return "sl_mob_kills"; }
-  @Override public int order() { return 2; }
-  @Override public ItemStack icon() { return Items.IRON_SWORD.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "mob_kills";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_mob_kills";
+  }
+
+  @Override
+  public int order() {
+    return 2;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.IRON_SWORD.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {

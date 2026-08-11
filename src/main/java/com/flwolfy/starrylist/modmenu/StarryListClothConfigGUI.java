@@ -1,10 +1,10 @@
 package com.flwolfy.starrylist.modmenu;
 
 import com.flwolfy.starrylist.StarryListMod;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import com.flwolfy.starrylist.data.lang.StarryListLang;
-import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -170,8 +170,11 @@ final class StarryListClothConfigGUI {
   private static void save(StarryListClothConfigBuilder values) {
     try {
       StarryListConfigData replacement = values.build();
-      List<String> errors = replacement.validate();
-      if (!errors.isEmpty()) throw new IllegalArgumentException(String.join(", ", errors));
+    List<String> errors = replacement.validate();
+      if (!errors.isEmpty()) {
+        throw new IllegalArgumentException(String.join(", ", errors));
+      }
+
       if (!applyUpdate(replacement)) {
         throw new IllegalStateException("The configuration could not be applied");
       }
@@ -202,6 +205,7 @@ final class StarryListClothConfigGUI {
     integratedServer.execute(() -> result.complete(
         StarryListConfigManager.getInstance().update(replacement)
     ));
+
     return result.join();
   }
 
@@ -241,10 +245,15 @@ final class StarryListClothConfigGUI {
 
     private void publish(BlacklistListEntry source, List<String> replacement) {
       List<String> copied = List.copyOf(replacement);
-      if (copied.equals(values)) return;
+      if (copied.equals(values)) {
+        return;
+      }
+
       values = copied;
       for (BlacklistListEntry editor : editors) {
-        if (editor != source) editor.receive(values);
+        if (editor != source) {
+          editor.receive(values);
+        }
       }
     }
 
@@ -307,7 +316,9 @@ final class StarryListClothConfigGUI {
       // Cloth omits dynamically-added cells from its narration/focus traversal collection.
       // Keep that collection in lockstep as well as the mouse-event widget collection.
       for (StringListCell cell : cells) {
-        if (!narratables.contains(cell)) narratables.add(cell);
+        if (!narratables.contains(cell)) {
+          narratables.add(cell);
+        }
       }
       super.extractRenderState(
           graphics, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, delta
@@ -316,14 +327,20 @@ final class StarryListClothConfigGUI {
 
     private void publishPendingChanges() {
       List<String> current = List.copyOf(getValue());
-      if (current.equals(observedValues)) return;
+      if (current.equals(observedValues)) {
+        return;
+      }
+
       observedValues = current;
       model.publish(this, current);
     }
 
     private void receive(List<String> replacement) {
       // Do not overwrite a local edit which has not reached its next render pass yet.
-      if (!List.copyOf(getValue()).equals(observedValues)) return;
+      if (!List.copyOf(getValue()).equals(observedValues)) {
+        return;
+      }
+
       replaceCells(replacement);
       observedValues = List.copyOf(replacement);
     }
@@ -331,7 +348,10 @@ final class StarryListClothConfigGUI {
     private void replaceCells(List<String> replacement) {
       widgets.removeAll(cells);
       narratables.removeAll(cells);
-      for (StringListCell cell : cells) cell.onDelete();
+      for (StringListCell cell : cells) {
+        cell.onDelete();
+      }
+
       cells.clear();
       for (String value : replacement) {
         StringListCell cell = new BlacklistPatternCell(value, this);

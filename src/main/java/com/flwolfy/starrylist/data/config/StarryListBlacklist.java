@@ -8,7 +8,11 @@ public final class StarryListBlacklist {
 
   private volatile List<Pattern> patterns = List.of();
 
-  /** Recompiles all validated patterns from the active configuration. */
+  /**
+   * Recompiles all validated patterns from the active configuration.
+   *
+   * @param config the active configuration
+   */
   public void apply(StarryListConfigData config) {
     patterns = config.blacklist().playerNamePatterns().stream()
         .map(expression -> Pattern.compile(
@@ -17,9 +21,17 @@ public final class StarryListBlacklist {
         .toList();
   }
 
-  /** Returns whether the full player name matches at least one configured expression. */
+  /**
+   * Checks whether a full player name matches a configured expression.
+   *
+   * @param playerName the complete player name
+   * @return whether the name is blacklisted
+   */
   public boolean matches(String playerName) {
-    if (playerName == null) return false;
+    if (playerName == null) {
+      return false;
+    }
+
     return patterns.stream().anyMatch(pattern -> pattern.matcher(playerName).matches());
   }
 }

@@ -1,7 +1,7 @@
 package com.flwolfy.starrylist.data.config;
 
-import com.flwolfy.starrylist.data.lang.StarryListLang;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
+import com.flwolfy.starrylist.data.lang.StarryListLang;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -45,7 +45,14 @@ public record StarryListConfigData(
       int rotationIntervalSeconds,
       List<String> enabledBoards
   ) {
-    /** Ensures the enabled-board collection cannot be mutated through the source list. */
+    /**
+     * Creates display settings with an immutable enabled-board collection.
+     *
+     * @param hiddenByDefault whether the default sidebar is hidden
+     * @param rotationEnabled whether multiple default boards rotate
+     * @param rotationIntervalSeconds the default rotation interval in seconds
+     * @param enabledBoards the enabled default board identifiers
+     */
     public Display {
       enabledBoards = enabledBoards == null ? null : List.copyOf(enabledBoards);
     }
@@ -57,13 +64,16 @@ public record StarryListConfigData(
    * @param playerNamePatterns case-insensitive Java regular expressions matched against full names
    */
   public record Blacklist(List<String> playerNamePatterns) {
-    /** Ensures the pattern collection cannot be mutated through the source list. */
+    /**
+     * Creates blacklist settings with an immutable pattern collection.
+     *
+     * @param playerNamePatterns the player-name regular expressions
+     */
     public Blacklist {
       playerNamePatterns = playerNamePatterns == null ? null : List.copyOf(playerNamePatterns);
     }
   }
 
-  /** Default configuration written when no configuration file exists. */
   public static final StarryListConfigData DEFAULT = new StarryListConfigData(
       new General(StarryListLang.ENGLISH, 2),
       new Display(
@@ -82,7 +92,10 @@ public record StarryListConfigData(
    */
   public List<String> validate() {
     List<String> invalid = new ArrayList<>();
-    if (general == null || general.language() == null) invalid.add("general.language");
+    if (general == null || general.language() == null) {
+      invalid.add("general.language");
+    }
+
     if (general == null || general.adminPermissionLevel() < 0
         || general.adminPermissionLevel() > 4) {
       invalid.add("general.adminPermissionLevel");
@@ -95,6 +108,7 @@ public record StarryListConfigData(
     if (display == null || display.enabledBoards() == null) {
       invalid.add("display.enabledBoards");
     }
+
     List<String> normalizedInput = display == null || display.enabledBoards() == null
         ? List.of() : display.enabledBoards().stream()
             .filter(java.util.Objects::nonNull)
@@ -110,6 +124,7 @@ public record StarryListConfigData(
     if (new HashSet<>(normalizedInput).size() != normalizedInput.size()) {
       invalid.add("display.enabledBoards");
     }
+
     Set<String> registeredIds = Set.copyOf(StarryListBoardRegistry.getInstance().ids());
     if (normalizedInput.stream().anyMatch(id -> !registeredIds.contains(id))) {
       invalid.add("display.enabledBoards");
@@ -130,6 +145,7 @@ public record StarryListConfigData(
         }
       }
     }
+
     return List.copyOf(new java.util.LinkedHashSet<>(invalid));
   }
 
@@ -140,7 +156,10 @@ public record StarryListConfigData(
    * @return normalized nonblank identifiers
    */
   public static List<String> normalizeIds(List<String> ids) {
-    if (ids == null) return List.of();
+    if (ids == null) {
+      return List.of();
+    }
+
     return StarryListBoardRegistry.getInstance().normalizeIds(ids);
   }
 }

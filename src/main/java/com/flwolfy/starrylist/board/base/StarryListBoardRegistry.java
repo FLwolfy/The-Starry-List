@@ -46,14 +46,17 @@ public final class StarryListBoardRegistry {
         .thenComparing(StarryListBoard::id));
     validate(discovered);
     boards = List.copyOf(discovered);
+
     Map<String, StarryListBoard> ids = new LinkedHashMap<>();
     Map<String, StarryListBoardRegistrar> handles = new HashMap<>();
     for (StarryListBoard board : boards) {
       ids.put(board.id(), board);
       handles.put(board.id(), new StarryListBoardRegistrar(board));
     }
+
     byId = Map.copyOf(ids);
     registrars = Map.copyOf(handles);
+
     StarryListMod.LOGGER.info(
         "Discovered {} StarryList boards: {}",
         boards.size(),
@@ -61,19 +64,32 @@ public final class StarryListBoardRegistry {
     );
   }
 
-  /** Returns the lazily discovered process-wide board registry. */
+  /**
+   * Returns the lazily discovered process-wide board registry.
+   *
+   * @return the board registry
+   */
   public static StarryListBoardRegistry getInstance() {
     StarryListBoardRegistry current = instance;
-    if (current != null) return current;
+    if (current != null) {
+      return current;
+    }
+
     synchronized (StarryListBoardRegistry.class) {
-      if (instance == null) instance = new StarryListBoardRegistry();
+      if (instance == null) {
+        instance = new StarryListBoardRegistry();
+      }
+
       return instance;
     }
   }
 
   /** Registers every board collector exactly once. */
   public synchronized void registerAll() {
-    if (registered) return;
+    if (registered) {
+      return;
+    }
+
     for (StarryListBoard board : boards) {
       try {
         board.register(registrars.get(board.id()));
@@ -82,34 +98,64 @@ public final class StarryListBoardRegistry {
             + " (" + board.getClass().getName() + ")", exception);
       }
     }
+
     registered = true;
   }
 
-  /** Finds a board by case-insensitive ID. */
+  /**
+   * Finds a board by its case-insensitive identifier.
+   *
+   * @param id the board identifier
+   * @return the matching board, if present
+   */
   public Optional<StarryListBoard> get(String id) {
-    if (id == null) return Optional.empty();
+    if (id == null) {
+      return Optional.empty();
+    }
+
     return Optional.ofNullable(byId.get(id.trim().toLowerCase(Locale.ROOT)));
   }
 
-  /** Returns all boards in canonical order. */
+  /**
+   * Returns all boards in canonical order.
+   *
+   * @return the immutable board list
+   */
   public List<StarryListBoard> all() {
     return boards;
   }
 
-  /** Returns all canonical board IDs. */
+  /**
+   * Returns all canonical board identifiers.
+   *
+   * @return the ordered identifiers
+   */
   public List<String> ids() {
     return boards.stream().map(StarryListBoard::id).toList();
   }
 
-  /** Returns whether this registry owns an objective name. */
+  /**
+   * Checks whether the registry owns an objective name.
+   *
+   * @param objectiveName the objective name to check
+   * @return whether a registered board owns the name
+   */
   public boolean ownsObjective(String objectiveName) {
     return objectiveName != null && boards.stream()
         .anyMatch(board -> board.objectiveName().equals(objectiveName));
   }
 
-  /** Canonicalizes known IDs and removes blanks, duplicates and unknown values. */
+  /**
+   * Canonicalizes known identifiers and removes blanks, duplicates, and unknown values.
+   *
+   * @param ids the identifiers to normalize
+   * @return known identifiers in canonical board order
+   */
   public List<String> normalizeIds(List<String> ids) {
-    if (ids == null) return List.of();
+    if (ids == null) {
+      return List.of();
+    }
+
     Set<String> requested = ids.stream()
         .filter(java.util.Objects::nonNull)
         .map(value -> value.trim().toLowerCase(Locale.ROOT))
@@ -157,7 +203,10 @@ public final class StarryListBoardRegistry {
         throw new IllegalStateException("Failed to instantiate board " + className, exception);
       }
     }
-    if (result.isEmpty()) throw new IllegalStateException("No StarryList boards were discovered");
+    if (result.isEmpty()) {
+      throw new IllegalStateException("No StarryList boards were discovered");
+    }
+
     return result;
   }
 
@@ -181,7 +230,9 @@ public final class StarryListBoardRegistry {
             Enumeration<JarEntry> entries = jar.entries();
             while (entries.hasMoreElements()) {
               String name = entries.nextElement().getName();
-              if (name.startsWith(PACKAGE_PATH + "/")) collectClassName(name, classNames);
+              if (name.startsWith(PACKAGE_PATH + "/")) {
+                collectClassName(name, classNames);
+              }
             }
           }
         }
@@ -196,7 +247,10 @@ public final class StarryListBoardRegistry {
   }
 
   private static void collectFromDirectory(Path packageRoot, Set<String> classNames) {
-    if (!Files.isDirectory(packageRoot)) return;
+    if (!Files.isDirectory(packageRoot)) {
+      return;
+    }
+
     try (var paths = Files.walk(packageRoot)) {
       paths.filter(Files::isRegularFile)
           .map(packageRoot::relativize)
@@ -211,7 +265,10 @@ public final class StarryListBoardRegistry {
   }
 
   private static void collectClassName(String resourceName, Set<String> classNames) {
-    if (!resourceName.endsWith(".class")) return;
+    if (!resourceName.endsWith(".class")) {
+      return;
+    }
+
     classNames.add(resourceName.substring(0, resourceName.length() - 6).replace('/', '.'));
   }
 
@@ -229,8 +286,12 @@ public final class StarryListBoardRegistry {
           || !OBJECTIVE_PATTERN.matcher(objective).matches()) {
         throw new IllegalStateException("Invalid objective name for board " + id);
       }
-      if (board.order() < 0) throw new IllegalStateException("Negative board order: " + id);
-      if (!ids.add(id)) throw new IllegalStateException("Duplicate board ID: " + id);
+      if (board.order() < 0) {
+        throw new IllegalStateException("Negative board order: " + id);
+      }
+      if (!ids.add(id)) {
+        throw new IllegalStateException("Duplicate board ID: " + id);
+      }
       if (!objectives.add(objective)) {
         throw new IllegalStateException("Duplicate board objective: " + objective);
       }

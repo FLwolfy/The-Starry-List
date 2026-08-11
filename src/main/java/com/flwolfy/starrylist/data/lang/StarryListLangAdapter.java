@@ -13,7 +13,6 @@ import java.lang.reflect.Type;
 public final class StarryListLangAdapter
     implements JsonSerializer<StarryListLang>, JsonDeserializer<StarryListLang> {
 
-  /** {@inheritDoc} */
   @Override
   public JsonElement serialize(
       StarryListLang source,
@@ -23,7 +22,6 @@ public final class StarryListLangAdapter
     return new JsonPrimitive(source.getLangKey());
   }
 
-  /** {@inheritDoc} */
   @Override
   public StarryListLang deserialize(
       JsonElement json,
@@ -32,8 +30,11 @@ public final class StarryListLangAdapter
   ) throws JsonParseException {
     String key = json.getAsString();
     for (StarryListLang language : StarryListLang.values()) {
-      if (language.getLangKey().equalsIgnoreCase(key)) return language;
+      if (language.getLangKey().equalsIgnoreCase(key)) {
+        return language;
+      }
     }
+
     throw new JsonParseException("Unsupported StarryList language: " + key);
   }
 }

@@ -39,18 +39,35 @@ public final class TravelDistanceBoard extends StarryListBoard {
   );
   private final Map<UUID, Map<Identifier, Integer>> baselines = new HashMap<>();
 
-  @Override public String id() { return "travel_distance"; }
-  @Override public String objectiveName() { return "sl_travel"; }
-  @Override public int order() { return 5; }
-  @Override public ItemStack icon() { return Items.COMPASS.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "travel_distance";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_travel";
+  }
+
+  @Override
+  public int order() {
+    return 5;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.COMPASS.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
     ServerPlayerEvents.JOIN.register(this::initialize);
     ServerPlayerEvents.LEAVE.register(player -> baselines.remove(player.getUUID()));
+
     ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) ->
         initialize(newPlayer)
     );
+
     ServerTickEvents.END_SERVER_TICK.register(server ->
         server.getPlayerList().getPlayers().forEach(player -> sample(player, registrar))
     );
@@ -61,6 +78,7 @@ public final class TravelDistanceBoard extends StarryListBoard {
     for (Identifier statistic : MOVEMENT_STATS) {
       values.put(statistic, value(player, statistic));
     }
+
     baselines.put(player.getUUID(), values);
   }
 
@@ -70,12 +88,18 @@ public final class TravelDistanceBoard extends StarryListBoard {
       initialize(player);
       return;
     }
+
     for (Identifier statistic : MOVEMENT_STATS) {
       int current = value(player, statistic);
       int earlier = previous.put(statistic, current);
-      if (current <= earlier) continue;
+      if (current <= earlier) {
+        continue;
+      }
+
       int blocks = registrar.accumulate(player, REMAINDER_KEY, current - earlier, 100);
-      if (blocks > 0) registrar.addAutomatic(player, blocks);
+      if (blocks > 0) {
+        registrar.addAutomatic(player, blocks);
+      }
     }
   }
 

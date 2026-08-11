@@ -74,9 +74,15 @@ public final class StarryListAdminCommand {
   }
 
   private static boolean hasPermission(CommandSourceStack source) {
-    if (source.getEntity() == null) return true;
+    if (source.getEntity() == null) {
+      return true;
+    }
+
     PermissionSet permissions = source.permissions();
-    if (permissions == PermissionSet.ALL_PERMISSIONS) return true;
+    if (permissions == PermissionSet.ALL_PERMISSIONS) {
+      return true;
+    }
+
     int required = StarryListConfigManager.getInstance().data().general().adminPermissionLevel();
     return permissions instanceof LevelBasedPermissionSet levels
         && levels.level().isEqualOrHigherThan(PermissionLevel.byId(required));
@@ -86,15 +92,20 @@ public final class StarryListAdminCommand {
     if (!StarryListConfigManager.getInstance().reload()) {
       return failure(context, "starrylist.admin.reload_failed");
     }
+
     return success(context, "starrylist.admin.reload_success");
   }
 
-  private static int scoreGet(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+  private static int scoreGet(CommandContext<CommandSourceStack> context)
+      throws CommandSyntaxException {
     StarryListRuntime runtime = runtime();
     ServerPlayer player = EntityArgument.getPlayer(context, "player");
     String board = board(context);
     var definition = runtime.registry().get(board).orElse(null);
-    if (definition == null) return failure(context, "starrylist.command.invalid_board");
+    if (definition == null) {
+      return failure(context, "starrylist.command.invalid_board");
+    }
+
     int score = runtime.scores().get(board, player.getUUID());
     context.getSource().sendSuccess(() -> text(
         "starrylist.admin.score_get",
@@ -115,15 +126,20 @@ public final class StarryListAdminCommand {
     if (runtime.registry().get(board).isEmpty()) {
       return failure(context, "starrylist.command.invalid_board");
     }
+
     Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "targets");
     int value = mutation == Mutation.RESET ? 0 : IntegerArgumentType.getInteger(context, "value");
     int affected = 0;
     for (ServerPlayer player : players) {
-      if (mutation == Mutation.SET) runtime.scores().set(board, player, value);
-      if (mutation == Mutation.ADD) runtime.scores().add(board, player, value);
-      if (mutation == Mutation.RESET) runtime.scores().reset(board, player.getUUID());
+      switch (mutation) {
+        case SET -> runtime.scores().set(board, player, value);
+        case ADD -> runtime.scores().add(board, player, value);
+        case RESET -> runtime.scores().reset(board, player.getUUID());
+      }
+
       affected++;
     }
+
     int result = affected;
     context.getSource().sendSuccess(() -> text("starrylist.admin.score_updated", result), true);
     return affected;
@@ -135,6 +151,7 @@ public final class StarryListAdminCommand {
     if (runtime.registry().get(board).isEmpty()) {
       return failure(context, "starrylist.command.invalid_board");
     }
+
     int affected = runtime.scores().resetAll(board);
     context.getSource().sendSuccess(() -> text("starrylist.admin.score_updated", affected), true);
     return affected;
@@ -178,8 +195,11 @@ public final class StarryListAdminCommand {
   }
 
   private static StarryListRuntime runtime() {
-    StarryListRuntime runtime = StarryListMod.runtime();
-    if (runtime == null) throw new IllegalStateException("StarryList server is not ready");
+    StarryListRuntime runtime = StarryListMod.getRuntime();
+    if (runtime == null) {
+      throw new IllegalStateException("StarryList server is not ready");
+    }
+
     return runtime;
   }
 

@@ -7,8 +7,8 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,7 +85,14 @@ public final class StarryListLangManager {
     return render(selected, key, arguments);
   }
 
-  /** Renders text for one of StarryList's bundled server languages. */
+  /**
+   * Renders text for one of StarryList's bundled server languages.
+   *
+   * @param language the requested bundled language
+   * @param key the translation key
+   * @param arguments the format arguments
+   * @return the rendered literal component
+   */
   public Component textFor(StarryListLang language, String key, Object... arguments) {
     return textFor(language == null ? null : language.getLangKey(), key, arguments);
   }
@@ -100,9 +107,13 @@ public final class StarryListLangManager {
       pattern = languages.getOrDefault(StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
     }
     if (pattern == null) {
-      if (warnedMissingKeys.add(key)) StarryListMod.LOGGER.warn("Missing language key: {}", key);
+      if (warnedMissingKeys.add(key)) {
+        StarryListMod.LOGGER.warn("Missing language key: {}", key);
+      }
+
       return Component.literal(key);
     }
+
     try {
       return Component.literal(pattern.formatted(arguments));
     } catch (RuntimeException ignored) {

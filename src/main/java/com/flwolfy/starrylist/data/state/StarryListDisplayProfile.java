@@ -23,11 +23,8 @@ public record StarryListDisplayProfile(
 
   /** Supported relationships between a player profile and server defaults. */
   public enum Mode {
-    /** Follow the active server display configuration. */
     DEFAULT,
-    /** Use the player's stored enabled boards and rotation settings. */
     CUSTOM,
-    /** Hide the StarryList sidebar. */
     HIDDEN
   }
 
@@ -45,7 +42,14 @@ public record StarryListDisplayProfile(
       ).apply(instance, StarryListDisplayProfile::new)
   );
 
-  /** Ensures a profile cannot be mutated through its source board list. */
+  /**
+   * Creates a display profile with an immutable, canonically ordered board list.
+   *
+   * @param mode the relationship to server defaults
+   * @param boards the enabled personal board identifiers
+   * @param rotationEnabled whether multiple boards rotate
+   * @param rotationIntervalSeconds the personal rotation interval in seconds
+   */
   public StarryListDisplayProfile {
     boards = StarryListConfigData.normalizeIds(boards);
   }

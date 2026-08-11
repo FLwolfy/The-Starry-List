@@ -23,19 +23,36 @@ public final class PlacingBoard extends StarryListBoard {
 
   private final Map<UUID, ListenerBinding> listeners = new HashMap<>();
 
-  @Override public String id() { return "placing"; }
-  @Override public String objectiveName() { return "sl_placing"; }
-  @Override public int order() { return 1; }
-  @Override public ItemStack icon() { return Items.BRICKS.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "placing";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_placing";
+  }
+
+  @Override
+  public int order() {
+    return 1;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.BRICKS.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
     ServerPlayerEvents.JOIN.register(player -> attach(player, registrar));
     ServerPlayerEvents.LEAVE.register(this::detach);
+
     ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
       detach(oldPlayer);
       attach(newPlayer, registrar);
     });
+
     ServerTickEvents.END_SERVER_TICK.register(server ->
         server.getPlayerList().getPlayers().forEach(player -> update(player, registrar))
     );
@@ -43,6 +60,7 @@ public final class PlacingBoard extends StarryListBoard {
 
   private void attach(ServerPlayer player, StarryListBoardRegistrar registrar) {
     detach(player);
+
     ServerLevel level = player.level();
     DynamicGameEventListener<PlacementListener> listener = new DynamicGameEventListener<>(
         new PlacementListener(player, registrar)
@@ -53,7 +71,9 @@ public final class PlacingBoard extends StarryListBoard {
 
   private void detach(ServerPlayer player) {
     ListenerBinding binding = listeners.remove(player.getUUID());
-    if (binding != null) binding.listener().remove(binding.level());
+    if (binding != null) {
+      binding.listener().remove(binding.level());
+    }
   }
 
   private void update(ServerPlayer player, StarryListBoardRegistrar registrar) {
@@ -63,6 +83,7 @@ public final class PlacingBoard extends StarryListBoard {
       attach(player, registrar);
       return;
     }
+
     binding.listener().move(binding.level());
   }
 
@@ -82,8 +103,15 @@ public final class PlacingBoard extends StarryListBoard {
       this.position = new EntityPositionSource(player, 0.0F);
     }
 
-    @Override public EntityPositionSource getListenerSource() { return position; }
-    @Override public int getListenerRadius() { return GameEvent.DEFAULT_NOTIFICATION_RADIUS; }
+    @Override
+    public EntityPositionSource getListenerSource() {
+      return position;
+    }
+
+    @Override
+    public int getListenerRadius() {
+      return GameEvent.DEFAULT_NOTIFICATION_RADIUS;
+    }
 
     @Override
     public boolean handleGameEvent(
@@ -93,7 +121,10 @@ public final class PlacingBoard extends StarryListBoard {
         Vec3 position
     ) {
       if (event.value() != GameEvent.BLOCK_PLACE.value()
-          || context.sourceEntity() != player) return false;
+          || context.sourceEntity() != player) {
+        return false;
+      }
+
       registrar.addAutomatic(player, 1);
       return true;
     }

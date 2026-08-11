@@ -28,7 +28,7 @@ public final class StarryListCommand {
         );
         return 0;
       }
-      var runtime = StarryListMod.runtime();
+      var runtime = StarryListMod.getRuntime();
       if (runtime == null) {
         context.getSource().sendFailure(
             StarryListLangManager.getInstance().text("starrylist.command.not_ready")

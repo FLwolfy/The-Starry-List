@@ -16,29 +16,58 @@ import net.minecraft.world.item.ItemStack;
  */
 public abstract class StarryListBoard {
 
-  /** Stable configuration, command and SavedData identifier. */
+  /**
+   * Returns the stable identifier used by configuration, commands, and saved data.
+   *
+   * @return the board identifier
+   */
   public abstract String id();
 
-  /** Stable, language-independent vanilla scoreboard objective name. */
+  /**
+   * Returns the stable, language-independent vanilla scoreboard objective name.
+   *
+   * @return the objective name
+   */
   public abstract String objectiveName();
 
-  /** Canonical display and rotation position; lower values appear first. */
+  /**
+   * Returns the canonical display and rotation position.
+   *
+   * @return the board order, where lower values appear first
+   */
   public abstract int order();
 
-  /** Fresh icon stack used by SGUI. */
+  /**
+   * Creates the icon displayed in the player GUI.
+   *
+   * @return a fresh, non-empty icon stack
+   */
   public abstract ItemStack icon();
 
-  /** Translation key for the board title. Override only when the conventional key is unsuitable. */
+  /**
+   * Returns the translation key for the board title.
+   *
+   * @return the title translation key
+   */
   protected String titleTranslationKey() {
     return "starrylist.board." + id() + ".title";
   }
 
-  /** Translation keys for board-specific lore lines. */
+  /**
+   * Returns the translation keys for board-specific lore lines.
+   *
+   * @return the ordered lore translation keys
+   */
   protected List<String> loreTranslationKeys() {
     return List.of("starrylist.board." + id() + ".description");
   }
 
-  /** Resolves localized presentation through the shared language manager. */
+  /**
+   * Resolves the localized presentation through the shared language manager.
+   *
+   * @param language the language to render
+   * @return the localized title and lore
+   */
   public final StarryListBoardPresentation presentation(StarryListLang language) {
     StarryListLangManager translations = StarryListLangManager.getInstance();
     return new StarryListBoardPresentation(
@@ -49,10 +78,19 @@ public abstract class StarryListBoard {
     );
   }
 
-  /** Registers this board's statistic collectors once during common mod initialization. */
+  /**
+   * Registers this board's statistic collectors during common mod initialization.
+   *
+   * @param registrar the services bound to this board
+   */
   public abstract void register(StarryListBoardRegistrar registrar);
 
-  /** Resolves presentation with English fallback. */
+  /**
+   * Resolves the presentation for a locale, with English as the fallback language.
+   *
+   * @param locale the client locale key
+   * @return the localized title and lore
+   */
   public final StarryListBoardPresentation presentationFor(String locale) {
     StarryListLangManager translations = StarryListLangManager.getInstance();
     return new StarryListBoardPresentation(
@@ -63,26 +101,45 @@ public abstract class StarryListBoard {
     );
   }
 
-  /** Resolves the configured server-language objective title. */
+  /**
+   * Resolves the objective title in the configured server language.
+   *
+   * @return the localized objective title
+   */
   public final Component displayName() {
     return StarryListLangManager.getInstance().text(titleTranslationKey());
   }
 
-  /** Resolves a player's preferred localized title. */
+  /**
+   * Resolves the board title in a player's preferred language.
+   *
+   * @param player the player receiving the title
+   * @return the localized title
+   */
   public final Component displayName(ServerPlayer player) {
     return StarryListLangManager.getInstance().textFor(
         player.clientInformation().language(), titleTranslationKey()
     );
   }
 
-  /** Resolves a player's localized board-specific lore. */
+  /**
+   * Resolves the board-specific lore in a player's preferred language.
+   *
+   * @param player the player receiving the lore
+   * @return the localized lore lines
+   */
   public final List<Component> lore(ServerPlayer player) {
     return presentationFor(player.clientInformation().language()).lore().stream()
         .map(line -> (Component) Component.literal(line))
         .toList();
   }
 
-  /** Resolves and validates the icon after Minecraft's item components are available. */
+  /**
+   * Resolves and validates the icon after Minecraft's item components are available.
+   *
+   * @return a non-empty icon stack
+   * @throws IllegalStateException if the board supplies an empty icon
+   */
   public final ItemStack iconForGui() {
     ItemStack stack = icon();
     if (stack == null || stack.isEmpty()) {

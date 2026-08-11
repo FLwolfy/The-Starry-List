@@ -42,10 +42,13 @@ final class StarryListClothConfigBuilder {
   void setBoardEnabled(String boardId, boolean enabled) {
     List<String> next = new ArrayList<>(enabledBoards);
     if (enabled) {
-      if (!next.contains(boardId)) next.add(boardId);
+      if (!next.contains(boardId)) {
+        next.add(boardId);
+      }
     } else {
       next.remove(boardId);
     }
+
     enabledBoards = StarryListConfigData.normalizeIds(next);
   }
 }

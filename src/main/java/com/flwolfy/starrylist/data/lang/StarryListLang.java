@@ -2,9 +2,7 @@ package com.flwolfy.starrylist.data.lang;
 
 /** Languages bundled for server-rendered command feedback. */
 public enum StarryListLang {
-  /** English server messages. */
   ENGLISH("en_us", "English"),
-  /** Simplified Chinese server messages. */
   SIMPLIFIED_CHINESE("zh_cn", "简体中文");
 
   private final String key;
@@ -24,7 +22,6 @@ public enum StarryListLang {
     return key;
   }
 
-  /** {@inheritDoc} */
   @Override
   public String toString() {
     return name;

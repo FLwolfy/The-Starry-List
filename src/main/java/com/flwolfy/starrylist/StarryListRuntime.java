@@ -1,12 +1,12 @@
 package com.flwolfy.starrylist;
 
-import com.flwolfy.starrylist.data.config.StarryListConfigManager;
-import com.flwolfy.starrylist.data.config.StarryListBlacklist;
-import com.flwolfy.starrylist.data.state.StarryListState;
-import com.flwolfy.starrylist.display.StarryListSidebarManager;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.board.scoreboard.StarryListScoreService;
 import com.flwolfy.starrylist.board.scoreboard.StarryListScoreboardManager;
+import com.flwolfy.starrylist.data.config.StarryListBlacklist;
+import com.flwolfy.starrylist.data.config.StarryListConfigManager;
+import com.flwolfy.starrylist.data.state.StarryListState;
+import com.flwolfy.starrylist.display.StarryListSidebarManager;
 import net.minecraft.server.MinecraftServer;
 
 /** Owns all world-bound StarryList services for the active server. */
@@ -45,7 +45,6 @@ public final class StarryListRuntime {
 
   /**
    * Rebuilds translated board metadata and refreshes every online sidebar after a config reload.
-   *
    */
   void applyConfig() {
     blacklist.apply(StarryListConfigManager.getInstance().data());
@@ -68,7 +67,11 @@ public final class StarryListRuntime {
     return state;
   }
 
-  /** Returns the server that owns this runtime. */
+  /**
+   * Returns the server that owns this runtime.
+   *
+   * @return the active server
+   */
   public MinecraftServer server() {
     return server;
   }

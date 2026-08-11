@@ -1,8 +1,8 @@
 package com.flwolfy.starrylist.data.state;
 
+import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,6 @@ public final class StarryListState extends SavedData {
       ).apply(instance, StarryListState::new)
   );
 
-  /** SavedData type used to load and persist StarryList world state. */
   public static final SavedDataType<StarryListState> TYPE = new SavedDataType<>(
       Identifier.fromNamespaceAndPath("the-starry-list", "state"),
       StarryListState::new,
@@ -58,7 +57,8 @@ public final class StarryListState extends SavedData {
         this.profiles.put(UUID.fromString(key), new StarryListDisplayProfile(
             value.mode(), canonical, value.rotationEnabled(), value.rotationIntervalSeconds()
         ));
-      } catch (IllegalArgumentException ignored) {}
+      } catch (IllegalArgumentException ignored) {
+      }
     });
     boardData.forEach((boardId, players) -> {
       Map<String, net.minecraft.nbt.CompoundTag> copied = new HashMap<>();
@@ -106,7 +106,9 @@ public final class StarryListState extends SavedData {
    * @param playerId player UUID
    */
   public void resetProfile(UUID playerId) {
-    if (profiles.remove(playerId) != null) setDirty();
+    if (profiles.remove(playerId) != null) {
+      setDirty();
+    }
   }
 
   /**
@@ -117,11 +119,20 @@ public final class StarryListState extends SavedData {
   public int clearProfiles() {
     int size = profiles.size();
     profiles.clear();
-    if (size > 0) setDirty();
+    if (size > 0) {
+      setDirty();
+    }
+
     return size;
   }
 
-  /** Returns persistent state isolated by board ID and player UUID. */
+  /**
+   * Returns persistent state isolated by board identifier and player UUID.
+   *
+   * @param boardId the board identifier
+   * @param playerId the player UUID
+   * @return the board-specific player state
+   */
   public StarryListBoardState boardState(String boardId, UUID playerId) {
     net.minecraft.nbt.CompoundTag data = boardData
         .computeIfAbsent(boardId, ignored -> new HashMap<>())
@@ -133,7 +144,14 @@ public final class StarryListState extends SavedData {
     setDirty();
   }
 
-  /** Stores one hidden score while a player is blacklisted. */
+  /**
+   * Stores one hidden score while a player is blacklisted.
+   *
+   * @param playerId the player UUID
+   * @param playerName the last known player name
+   * @param boardId the board identifier
+   * @param value the archived score
+   */
   public void archiveScore(UUID playerId, String playerName, String boardId, int value) {
     String key = playerId.toString();
     archivedPlayerNames.put(key, playerName);
@@ -141,13 +159,23 @@ public final class StarryListState extends SavedData {
     setDirty();
   }
 
-  /** Returns one archived score, or {@code null} when none exists. */
+  /**
+   * Returns one archived score.
+   *
+   * @param playerId the player UUID
+   * @param boardId the board identifier
+   * @return the archived score, or {@code null} when none exists
+   */
   public Integer archivedScore(UUID playerId, String boardId) {
     Map<String, Integer> scores = archivedScores.get(playerId.toString());
     return scores == null ? null : scores.get(boardId);
   }
 
-  /** Returns an immutable snapshot of every archived player. */
+  /**
+   * Returns an immutable snapshot of every archived player.
+   *
+   * @return archived identities and scores by player UUID
+   */
   public Map<UUID, ArchivedScores> archivedPlayers() {
     Map<UUID, ArchivedScores> result = new HashMap<>();
     archivedScores.forEach((key, scores) -> {
@@ -156,16 +184,25 @@ public final class StarryListState extends SavedData {
         result.put(playerId, new ArchivedScores(
             archivedPlayerNames.getOrDefault(key, key), Map.copyOf(scores)
         ));
-      } catch (IllegalArgumentException ignored) {}
+      } catch (IllegalArgumentException ignored) {
+      }
     });
     return Map.copyOf(result);
   }
 
-  /** Removes one archived score and prunes empty player records. */
+  /**
+   * Removes one archived score and prunes empty player records.
+   *
+   * @param playerId the player UUID
+   * @param boardId the board identifier
+   */
   public void removeArchivedScore(UUID playerId, String boardId) {
     String key = playerId.toString();
     Map<String, Integer> scores = archivedScores.get(key);
-    if (scores == null || scores.remove(boardId) == null) return;
+    if (scores == null || scores.remove(boardId) == null) {
+      return;
+    }
+
     if (scores.isEmpty()) {
       archivedScores.remove(key);
       archivedPlayerNames.remove(key);
@@ -173,21 +210,37 @@ public final class StarryListState extends SavedData {
     setDirty();
   }
 
-  /** Removes all archived values for one leaderboard. */
+  /**
+   * Removes all archived values for one leaderboard.
+   *
+   * @param boardId the board identifier
+   * @return the number of removed scores
+   */
   public int clearArchivedBoard(String boardId) {
     int removed = 0;
     for (String key : List.copyOf(archivedScores.keySet())) {
       Map<String, Integer> scores = archivedScores.get(key);
-      if (scores != null && scores.remove(boardId) != null) removed++;
+      if (scores != null && scores.remove(boardId) != null) {
+        removed++;
+      }
+
       if (scores != null && scores.isEmpty()) {
         archivedScores.remove(key);
         archivedPlayerNames.remove(key);
       }
     }
-    if (removed > 0) setDirty();
+    if (removed > 0) {
+      setDirty();
+    }
+
     return removed;
   }
 
-  /** Immutable archived identity and per-board values. */
+  /**
+   * Immutable archived identity and per-board values.
+   *
+   * @param playerName the last known player name
+   * @param scores the archived values by board identifier
+   */
   public record ArchivedScores(String playerName, Map<String, Integer> scores) {}
 }

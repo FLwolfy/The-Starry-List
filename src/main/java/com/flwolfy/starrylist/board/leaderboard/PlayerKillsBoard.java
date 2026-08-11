@@ -10,10 +10,25 @@ import net.minecraft.world.item.Items;
 /** Counts other players killed by a player. */
 public final class PlayerKillsBoard extends StarryListBoard {
 
-  @Override public String id() { return "player_kills"; }
-  @Override public String objectiveName() { return "sl_player_kills"; }
-  @Override public int order() { return 3; }
-  @Override public ItemStack icon() { return Items.DIAMOND_SWORD.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "player_kills";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_player_kills";
+  }
+
+  @Override
+  public int order() {
+    return 3;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.DIAMOND_SWORD.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {

@@ -10,15 +10,32 @@ import net.minecraft.world.item.Items;
 /** Counts player deaths. */
 public final class DeathsBoard extends StarryListBoard {
 
-  @Override public String id() { return "deaths"; }
-  @Override public String objectiveName() { return "sl_deaths"; }
-  @Override public int order() { return 4; }
-  @Override public ItemStack icon() { return Items.TOTEM_OF_UNDYING.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "deaths";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_deaths";
+  }
+
+  @Override
+  public int order() {
+    return 4;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.TOTEM_OF_UNDYING.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
     ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
-      if (entity instanceof ServerPlayer player) registrar.addAutomatic(player, 1);
+      if (entity instanceof ServerPlayer player) {
+        registrar.addAutomatic(player, 1);
+      }
     });
   }
 }

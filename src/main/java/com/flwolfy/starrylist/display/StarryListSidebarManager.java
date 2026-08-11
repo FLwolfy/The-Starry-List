@@ -1,9 +1,9 @@
 package com.flwolfy.starrylist.display;
 
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
 import com.flwolfy.starrylist.data.state.StarryListState;
-import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +51,10 @@ public final class StarryListSidebarManager {
   /** Advances sidebar rotation and updates every online player. */
   public void tick() {
     ticks++;
-    for (ServerPlayer player : server.getPlayerList().getPlayers()) update(player, false);
+
+    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+      update(player, false);
+    }
   }
 
   /**
@@ -62,7 +65,10 @@ public final class StarryListSidebarManager {
    */
   public void update(ServerPlayer player, boolean force) {
     syncObjectives(player);
-    if (force) rotationStartedAt.put(player.getUUID(), ticks);
+    if (force) {
+      rotationStartedAt.put(player.getUUID(), ticks);
+    }
+
     EffectiveDisplay effective = effective(player.getUUID());
     Objective objective = null;
     if (!effective.hidden() && !effective.boards().isEmpty()) {
@@ -75,6 +81,7 @@ public final class StarryListSidebarManager {
           .map(board -> server.getScoreboard().getObjective(board.objectiveName()))
           .orElse(null);
     }
+
     String nextName = objective == null ? "" : objective.getName();
     String previous = displayedObjectives.get(player.getUUID());
     if (objective == null) {
@@ -82,6 +89,7 @@ public final class StarryListSidebarManager {
       displayedObjectives.put(player.getUUID(), "");
       return;
     }
+
     if (force || !nextName.equals(previous)) {
       player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, objective));
       displayedObjectives.put(player.getUUID(), nextName);
@@ -120,6 +128,7 @@ public final class StarryListSidebarManager {
     if (profile.mode() == StarryListDisplayProfile.Mode.HIDDEN) {
       return new EffectiveDisplay(true, List.of(), false, defaults.rotationIntervalSeconds());
     }
+
     List<String> requested = profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
         ? defaults.enabledBoards() : profile.boards();
     List<String> available = StarryListConfigData.normalizeIds(requested).stream()
@@ -128,6 +137,7 @@ public final class StarryListSidebarManager {
         .toList();
     boolean hidden = profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
         && defaults.hiddenByDefault();
+
     return new EffectiveDisplay(
         hidden || available.isEmpty(),
         available,
@@ -159,7 +169,10 @@ public final class StarryListSidebarManager {
    */
   public StarryListDisplayProfile editableProfile(UUID playerId) {
     StarryListDisplayProfile current = state.profile(playerId);
-    if (current.mode() == StarryListDisplayProfile.Mode.CUSTOM) return current;
+    if (current.mode() == StarryListDisplayProfile.Mode.CUSTOM) {
+      return current;
+    }
+
     if (current.mode() == StarryListDisplayProfile.Mode.HIDDEN) {
       return new StarryListDisplayProfile(
           StarryListDisplayProfile.Mode.CUSTOM,
@@ -168,6 +181,7 @@ public final class StarryListSidebarManager {
           current.rotationIntervalSeconds()
       );
     }
+
     EffectiveDisplay effective = effective(playerId);
     List<String> boards = effective.boards().isEmpty()
         ? StarryListConfigData.normalizeIds(config.get().display().enabledBoards())
@@ -181,11 +195,17 @@ public final class StarryListSidebarManager {
   }
 
   private void syncObjectives(ServerPlayer player) {
-    if (!syncedPlayers.add(player.getUUID())) return;
+    if (!syncedPlayers.add(player.getUUID())) {
+      return;
+    }
+
     net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
     for (var board : registry.get().all()) {
       Objective objective = scoreboard.getObjective(board.objectiveName());
-      if (objective == null) continue;
+      if (objective == null) {
+        continue;
+      }
+
       for (Packet<?> packet : scoreboard.getStartTrackingPackets(objective)) {
         player.connection.send(packet);
       }
@@ -202,9 +222,15 @@ public final class StarryListSidebarManager {
    * safest cooperative behavior.</p>
    */
   private void releaseSidebar(ServerPlayer player, String previous) {
-    if (!registry.get().ownsObjective(previous)) return;
+    if (!registry.get().ownsObjective(previous)) {
+      return;
+    }
+
     Objective fallback = server.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
-    if (fallback != null && registry.get().ownsObjective(fallback.getName())) fallback = null;
+    if (fallback != null && registry.get().ownsObjective(fallback.getName())) {
+      fallback = null;
+    }
+
     player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, fallback));
   }
 

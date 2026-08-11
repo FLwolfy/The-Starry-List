@@ -12,7 +12,7 @@ final class StarryListBoardArgument {
   private StarryListBoardArgument() {}
 
   static final SuggestionProvider<CommandSourceStack> ENABLED = (context, builder) -> {
-    var runtime = StarryListMod.runtime();
+    var runtime = StarryListMod.getRuntime();
     return SharedSuggestionProvider.suggest(
         runtime == null ? java.util.stream.Stream.empty()
             : runtime.registry().all().stream().map(board -> board.id()),

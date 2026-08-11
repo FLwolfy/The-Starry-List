@@ -83,9 +83,15 @@ public final class StarryListConfigManager {
     LOCK.writeLock().lock();
     try {
       LoadResult result = readAndValidate(false);
-      if (!result.valid()) return false;
+      if (!result.valid()) {
+        return false;
+      }
+
       activate(result.data());
-      if (result.normalized()) saveStatic(result.data());
+      if (result.normalized()) {
+        saveStatic(result.data());
+      }
+
       return true;
     } catch (Exception exception) {
       StarryListMod.LOGGER.error("Failed to reload StarryList config", exception);
@@ -102,12 +108,16 @@ public final class StarryListConfigManager {
    * @return whether the replacement was successfully saved and activated
    */
   public boolean update(StarryListConfigData replacement) {
-    if (replacement == null) return false;
+    if (replacement == null) {
+      return false;
+    }
+
     List<String> invalid = replacement.validate();
     if (!invalid.isEmpty()) {
       StarryListMod.LOGGER.error("Refusing invalid StarryList config fields: {}", invalid);
       return false;
     }
+
     replacement = canonicalize(replacement);
     LOCK.writeLock().lock();
     StarryListConfigData previous = data;
@@ -151,14 +161,20 @@ public final class StarryListConfigManager {
       }
       LoadResult result = readAndValidate(true);
       if (result.valid()) {
-        if (result.normalized()) saveStatic(result.data());
+        if (result.normalized()) {
+          saveStatic(result.data());
+        }
+
         return result.data();
       }
       backupInvalid();
       saveStatic(StarryListConfigData.DEFAULT);
     } catch (Exception exception) {
       StarryListMod.LOGGER.error("Failed to load StarryList config; using defaults", exception);
-      if (Files.exists(CONFIG_PATH)) backupInvalid();
+      if (Files.exists(CONFIG_PATH)) {
+        backupInvalid();
+      }
+
       try {
         saveStatic(StarryListConfigData.DEFAULT);
       } catch (Exception saveException) {
@@ -178,6 +194,7 @@ public final class StarryListConfigManager {
       }
       JsonObject target = parsed.getAsJsonObject();
       boolean normalized = false;
+
       StarryListConfigData loaded = GSON.fromJson(target, StarryListConfigData.class);
       List<String> invalid = loaded == null ? List.of("root") : loaded.validate();
       if (!invalid.isEmpty()) {
@@ -203,13 +220,19 @@ public final class StarryListConfigManager {
       StarryListMod.LOGGER.info("Loaded StarryList config from {}", CONFIG_PATH);
       return new LoadResult(loaded, true, normalized);
     } catch (Exception exception) {
-      if (!startup) StarryListMod.LOGGER.error("Could not parse StarryList config", exception);
+      if (!startup) {
+        StarryListMod.LOGGER.error("Could not parse StarryList config", exception);
+      }
+
       throw exception;
     }
   }
 
   private static StarryListConfigData canonicalize(StarryListConfigData value) {
-    if (value.display() == null || value.display().enabledBoards() == null) return value;
+    if (value.display() == null || value.display().enabledBoards() == null) {
+      return value;
+    }
+
     return new StarryListConfigData(
         value.general(),
         new StarryListConfigData.Display(
@@ -229,7 +252,12 @@ public final class StarryListConfigManager {
       GSON.toJson(value, writer);
     }
     try {
-      Files.move(temporary, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      Files.move(
+          temporary,
+          CONFIG_PATH,
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.ATOMIC_MOVE
+      );
     } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
       Files.move(temporary, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING);
     }

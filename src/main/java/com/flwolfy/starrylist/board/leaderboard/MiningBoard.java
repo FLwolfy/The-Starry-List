@@ -10,15 +10,32 @@ import net.minecraft.world.item.Items;
 /** Counts successful server-side block breaks. */
 public final class MiningBoard extends StarryListBoard {
 
-  @Override public String id() { return "mining"; }
-  @Override public String objectiveName() { return "sl_mining"; }
-  @Override public int order() { return 0; }
-  @Override public ItemStack icon() { return Items.DIAMOND_PICKAXE.getDefaultInstance(); }
+  @Override
+  public String id() {
+    return "mining";
+  }
+
+  @Override
+  public String objectiveName() {
+    return "sl_mining";
+  }
+
+  @Override
+  public int order() {
+    return 0;
+  }
+
+  @Override
+  public ItemStack icon() {
+    return Items.DIAMOND_PICKAXE.getDefaultInstance();
+  }
 
   @Override
   public void register(StarryListBoardRegistrar registrar) {
     PlayerBlockBreakEvents.AFTER.register((level, player, position, state, blockEntity) -> {
-      if (player instanceof ServerPlayer serverPlayer) registrar.addAutomatic(serverPlayer, 1);
+      if (player instanceof ServerPlayer serverPlayer) {
+        registrar.addAutomatic(serverPlayer, 1);
+      }
     });
   }
 }

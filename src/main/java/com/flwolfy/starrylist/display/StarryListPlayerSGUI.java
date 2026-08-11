@@ -51,11 +51,18 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   private void render() {
     GuiElementBuilder filler = new GuiElementBuilder(Items.LIGHT_GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
-    for (int slot = 0; slot < getVirtualSize(); slot++) setSlot(slot, filler.build());
+    for (int slot = 0; slot < getVirtualSize(); slot++) {
+      setSlot(slot, filler.build());
+    }
+
     GuiElementBuilder edge = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
-    for (int slot = 0; slot < 9; slot++) setSlot(slot, edge.build());
-    for (int slot = 36; slot < 45; slot++) setSlot(slot, edge.build());
+    for (int slot = 0; slot < 9; slot++) {
+      setSlot(slot, edge.build());
+    }
+    for (int slot = 36; slot < 45; slot++) {
+      setSlot(slot, edge.build());
+    }
 
     StarryListDisplayProfile saved = runtime.state().profile(player.getUUID());
     StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
@@ -81,6 +88,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
       boolean selected = enabled.contains(board.id());
       setSlot(BOARD_START_SLOT + index - firstBoard, boardButton(board, selected));
     }
+
     if (pageCount > 1) {
       setSlot(18, new GuiElementBuilder(Items.ARROW)
           .setName(text("starrylist.gui.page.previous").copy().withStyle(ChatFormatting.AQUA))
@@ -179,13 +187,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
     } else {
       boards.add(boardId);
     }
+
     saveSettings(copy(editable, boards));
     applyAndRender();
   }
 
   private void openIntervalInput(StarryListDisplayProfile editable) {
     AnvilInputGui input = new AnvilInputGui(player, false) {
-      /** {@inheritDoc} */
       @Override
       public void onInput(String value) {
         renderResult(this, value, editable);
