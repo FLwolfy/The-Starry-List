@@ -26,13 +26,11 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   private static final int BOARDS_PER_PAGE = 7;
 
   private final StarryListRuntime runtime;
-  private final String locale;
   private int page;
 
   private StarryListPlayerSGUI(ServerPlayer player, StarryListRuntime runtime) {
     super(MenuType.GENERIC_9x5, player, false);
     this.runtime = runtime;
-    this.locale = player.clientInformation().language();
     setTitle(text("starrylist.gui.title"));
     setLockPlayerInventory(true);
     render();
@@ -155,13 +153,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
 
   private GuiElementBuilder boardButton(
       StarryListBoard board,
-      boolean selected
+    boolean selected
   ) {
     GuiElementBuilder builder = new GuiElementBuilder(board.iconForGui())
-        .setName(board.displayName(player).copy().withStyle(
+        .setName(board.displayName().copy().withStyle(
             selected ? ChatFormatting.GREEN : ChatFormatting.GRAY
         ));
-    for (Component line : board.lore(player)) {
+    for (Component line : board.lore()) {
       builder.addLoreLine(line.copy().withStyle(ChatFormatting.GRAY));
     }
     builder.addLoreLine(text(
@@ -303,6 +301,6 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   }
 
   private Component text(String key, Object... arguments) {
-    return StarryListLangManager.getInstance().textFor(locale, key, arguments);
+    return StarryListLangManager.getInstance().text(key, arguments);
   }
 }

@@ -4,7 +4,6 @@ import com.flwolfy.starrylist.data.lang.StarryListLang;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import java.util.List;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -111,26 +110,14 @@ public abstract class StarryListBoard {
   }
 
   /**
-   * Resolves the board title in a player's preferred language.
+   * Resolves the board-specific lore in the configured server language.
    *
-   * @param player the player receiving the title
-   * @return the localized title
-   */
-  public final Component displayName(ServerPlayer player) {
-    return StarryListLangManager.getInstance().textFor(
-        player.clientInformation().language(), titleTranslationKey()
-    );
-  }
-
-  /**
-   * Resolves the board-specific lore in a player's preferred language.
-   *
-   * @param player the player receiving the lore
    * @return the localized lore lines
    */
-  public final List<Component> lore(ServerPlayer player) {
-    return presentationFor(player.clientInformation().language()).lore().stream()
-        .map(line -> (Component) Component.literal(line))
+  public final List<Component> lore() {
+    StarryListLangManager translations = StarryListLangManager.getInstance();
+    return loreTranslationKeys().stream()
+        .map(translations::text)
         .toList();
   }
 
