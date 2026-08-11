@@ -3,8 +3,7 @@ package com.flwolfy.starrylist.display;
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
 import com.flwolfy.starrylist.data.state.StarryListState;
-import com.flwolfy.starrylist.scoreboard.StarryListBoardIds;
-import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +34,7 @@ public final class StarryListSidebarManager {
    * @param server active Minecraft server
    * @param state world-scoped player display state
    * @param config active configuration supplier
-   * @param registry fixed leaderboard registry supplier
+   * @param registry discovered leaderboard registry supplier
    */
   public StarryListSidebarManager(
       MinecraftServer server,
@@ -203,9 +202,9 @@ public final class StarryListSidebarManager {
    * safest cooperative behavior.</p>
    */
   private void releaseSidebar(ServerPlayer player, String previous) {
-    if (!StarryListBoardIds.ownsObjective(previous)) return;
+    if (!registry.get().ownsObjective(previous)) return;
     Objective fallback = server.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
-    if (fallback != null && StarryListBoardIds.ownsObjective(fallback.getName())) fallback = null;
+    if (fallback != null && registry.get().ownsObjective(fallback.getName())) fallback = null;
     player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, fallback));
   }
 

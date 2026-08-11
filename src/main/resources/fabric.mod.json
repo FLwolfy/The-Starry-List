@@ -3,7 +3,7 @@
   "id": "the-starry-list",
   "version": "${version}",
   "name": "The-Starry-List",
-  "description": "A server-side leaderboard mod with six built-in boards for mining, placing, kills, deaths, and travel.",
+  "description": "An extensible server-side leaderboard mod with automatically discovered board modules.",
   "authors": [
     "FLwolfy"
   ],
@@ -21,9 +21,6 @@
       "com.flwolfy.starrylist.modmenu.StarryListModMenu"
     ]
   },
-  "mixins": [
-    "the-starry-list.mixins.json"
-  ],
   "depends": {
     "fabricloader": ">=0.19.3",
     "minecraft": "~26.1",

@@ -1,7 +1,7 @@
 package com.flwolfy.starrylist.data.config;
 
 import com.flwolfy.starrylist.data.lang.StarryListLang;
-import com.flwolfy.starrylist.scoreboard.StarryListBoardIds;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +37,7 @@ public record StarryListConfigData(
    * @param hiddenByDefault whether the default sidebar is hidden
    * @param rotationEnabled whether multiple default boards rotate
    * @param rotationIntervalSeconds default rotation interval in seconds
-   * @param enabledBoards enabled default board identifiers in the fixed built-in order
+   * @param enabledBoards enabled default board identifiers in discovered canonical order
    */
   public record Display(
       boolean hiddenByDefault,
@@ -110,8 +110,8 @@ public record StarryListConfigData(
     if (new HashSet<>(normalizedInput).size() != normalizedInput.size()) {
       invalid.add("display.enabledBoards");
     }
-    Set<String> builtIns = Set.copyOf(StarryListBoardIds.values());
-    if (normalizedInput.stream().anyMatch(id -> !builtIns.contains(id))) {
+    Set<String> registeredIds = Set.copyOf(StarryListBoardRegistry.getInstance().ids());
+    if (normalizedInput.stream().anyMatch(id -> !registeredIds.contains(id))) {
       invalid.add("display.enabledBoards");
     }
     if (blacklist == null || blacklist.playerNamePatterns() == null) {
@@ -134,18 +134,13 @@ public record StarryListConfigData(
   }
 
   /**
-   * Normalizes board identifiers into the fixed built-in display order.
+   * Normalizes board identifiers into discovered canonical display order.
    *
    * @param ids board identifiers to normalize
    * @return normalized nonblank identifiers
    */
   public static List<String> normalizeIds(List<String> ids) {
     if (ids == null) return List.of();
-    Set<String> requested = ids.stream()
-        .filter(java.util.Objects::nonNull)
-        .map(value -> value.trim().toLowerCase(Locale.ROOT))
-        .filter(value -> !value.isBlank())
-        .collect(java.util.stream.Collectors.toSet());
-    return StarryListBoardIds.values().stream().filter(requested::contains).toList();
+    return StarryListBoardRegistry.getInstance().normalizeIds(ids);
   }
 }

@@ -1,6 +1,6 @@
 # The-Starry-List 模组使用文档
 
-**The-Starry-List** 是面向 Minecraft 26.1 Fabric 的排行榜模组。它通过原版 scoreboard objective 保存六类游戏统计，并为每名玩家独立控制侧边栏的榜单开关、显示状态与轮转间隔。
+**The-Starry-List** 是面向 Minecraft 26.1 Fabric 的可扩展排行榜模组。它通过原版 scoreboard objective 保存游戏统计，并为每名玩家独立控制侧边栏的榜单开关、显示状态与轮转间隔。
 
 See the English document [here](./README.md).
 
@@ -12,10 +12,10 @@ See the English document [here](./README.md).
 
 ## 功能与特性
 
-- 六个固定内置榜单：挖掘、放置、怪物击杀、玩家击杀、死亡和移动距离。
+- 自动发现的榜单模块；当前内置挖掘、放置、怪物击杀、玩家击杀、死亡和移动距离。
 - 使用原版 scoreboard 保存分数，不额外创建玩家分数文件。
 - 每名玩家拥有相互独立的侧边栏设置。
-- 支持选择榜单、隐藏侧边栏以及开启或关闭轮转；榜单始终使用固定内置顺序。
+- 支持选择榜单、隐藏侧边栏以及开启或关闭轮转；榜单使用模块声明的稳定顺序。
 - 支持使用玩家名正则表达式配置计分与显示黑名单。
 - 支持服务器默认显示配置和玩家个人覆盖配置。
 - 分数和显示偏好按世界保存，服务器重启后继续保留。
@@ -24,7 +24,7 @@ See the English document [here](./README.md).
 - 可作为纯服务端模组部署，客户端无需安装。
 - 可选的 Cloth Config 图形化配置界面。
 
-The-Starry-List 只提供下文列出的六个榜单，不支持新增其他榜单类型。
+在项目的 `com.flwolfy.starrylist.board` 模块树下新增 `StarryListBoard` 子类后，会在下次启动时自动注册，无需修改集中式 ID 或注册列表。
 
 ---
 
@@ -83,7 +83,7 @@ The-Starry-List 只提供下文列出的六个榜单，不支持新增其他榜�
 | `deaths` | `sl_deaths` | 死亡榜 | 玩家死亡的次数 |
 | `travel_distance` | `sl_travel` | 移动距离榜 | 原版连续移动统计累计的整格距离 |
 
-榜单 ID 用于配置和指令，Objective 是保存在原版 scoreboard 中的内部名称。六个 ID 和 Objective 名称固定不可修改。
+榜单 ID 用于配置和指令，Objective 是保存在原版 scoreboard 中的内部名称。每个被发现的模块提供自己经过校验的标识。
 
 ### 挖掘榜
 
@@ -136,7 +136,7 @@ The-Starry-List 只提供下文列出的六个榜单，不支持新增其他榜�
 
 ## Scoreboard 与数据保存
 
-- 六个榜单使用 criterion 为 `dummy` 的原版 objective。
+- 每个已注册榜单都使用 criterion 为 `dummy` 的原版 objective。
 - 内部分数 owner 使用玩家 UUID 字符串，避免改名后产生第二份分数。
 - 玩家在线时，分数条目的显示名称会刷新为当前游戏名称。
 - 分数由原版 `scoreboard.dat` 保存，允许管理员设置负数。
@@ -199,9 +199,9 @@ config/starrylist.json
 | `hiddenByDefault` | `boolean` | `false` | 没有个人覆盖的玩家是否默认隐藏侧边栏 |
 | `rotationEnabled` | `boolean` | `true` | 默认 profile 是否轮转多个榜单 |
 | `rotationIntervalSeconds` | `int` | `20` | 默认轮转间隔，范围 `1`～`3600` 秒 |
-| `enabledBoards` | `string[]` | `["mining", "placing", "mob_kills"]` | 默认启用的榜单，只能使用六个固定 ID，不允许重复；允许使用空数组 |
+| `enabledBoards` | `string[]` | `["mining", "placing", "mob_kills"]` | 默认启用的已注册榜单 ID，不允许重复；允许使用空数组 |
 
-`enabledBoards` 可使用：
+内置 `enabledBoards` ID 为：
 
 ```text
 mining
@@ -212,7 +212,7 @@ deaths
 travel_distance
 ```
 
-JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内置顺序显示和轮转；关闭 `rotationEnabled` 时固定显示第一个已启用榜单。空数组是合法设置，表示当前没有 StarryList 榜单可显示。旧版 `defaultBoards` 会在加载时自动迁移，旧版空数组也会保持为空。
+JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块声明的顺序显示和轮转；关闭 `rotationEnabled` 时固定显示第一个已启用榜单。空数组是合法设置，表示当前没有 StarryList 榜单可显示。新加入的榜单不会自动写入现有配置，因此默认关闭。
 
 ### 黑名单（`blacklist`）
 
@@ -220,7 +220,7 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内
 |---|---|---|---|
 | `playerNamePatterns` | `string[]` | `[]` | 对完整玩家名执行大小写不敏感的 Java 正则匹配 |
 
-命中任意表达式的玩家停止自动累计六个榜单，并从可见 objective 中移除。已有分数会按世界归档而不是删除；玩家不再命中黑名单时会恢复。无效或空白正则会使配置验证失败。例如 `bot_.*` 可匹配所有以 `bot_` 开头的玩家名。
+命中任意表达式的玩家停止自动累计所有已注册榜单，并从可见 objective 中移除。已有分数会按世界归档而不是删除；玩家不再命中黑名单时会恢复。无效或空白正则会使配置验证失败。例如 `bot_.*` 可匹配所有以 `bot_` 开头的玩家名。
 
 修改配置后执行：
 
@@ -250,9 +250,9 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内
 
 ## 玩家菜单
 
-`/starry` 无需管理员权限，会直接打开固定、无分页的六榜物品栏菜单。该指令没有参数或子命令；控制台和命令方块执行时会收到“仅玩家可用”的提示。
+`/starry` 无需管理员权限，会直接打开固定五行的榜单物品栏菜单。该指令没有参数或子命令；控制台和命令方块执行时会收到“仅玩家可用”的提示。
 
-菜单为五行容器：最上、最下两行为灰色玻璃，其余分隔与包边使用浅灰色玻璃；中间六张榜单卡片按固定顺序相邻排列。已启用卡片带附魔光效，停用卡片不发光；三个原头颅图标改用铁剑、钻石剑和不死图腾以确保光效清晰。允许停用全部六个榜单，此时不会显示 StarryList 侧边栏，但榜单开关、轮转和间隔仍保存在 profile 中。底部控件可恢复服务器默认值、隐藏或显示侧边栏、切换轮转、通过带取消按钮的铁砧界面输入 `1`～`3600` 秒间隔，以及关闭菜单。成功修改会向操作者播放清脆的经验球音效，立即保存到当前世界 SavedData 并刷新侧边栏。
+菜单为五行容器：最上、最下两行为灰色玻璃，其余分隔与包边使用浅灰色玻璃；每页最多七张榜单卡片按注册顺序相邻排列。当前六榜布局保持不变；超过七个榜单时，左右包边槽显示循环翻页箭头。已启用卡片带附魔光效，停用卡片不发光。允许停用全部榜单，此时不会显示 StarryList 侧边栏，但榜单开关、轮转和间隔仍保存在 profile 中。底部控件可恢复服务器默认值、隐藏或显示侧边栏、切换轮转、通过带取消按钮的铁砧界面输入 `1`～`3600` 秒间隔，以及关闭菜单。成功修改会向操作者播放清脆的经验球音效，立即保存到当前世界 SavedData 并刷新侧边栏。
 
 菜单由内嵌在模组 JAR 中的 SGui 实现，只发送原版容器 packet；玩家客户端无需单独安装 SGui 或 The-Starry-List。菜单优先使用玩家上报的 `zh_cn` 或 `en_us`，否则回退到服务器配置语言，最后回退到英语。
 
@@ -298,12 +298,26 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内
 
 - **全部**：第一个分类，以展开子分类形式包含下述所有真实配置项，并与独立分类同步编辑。
 - **常规**：服务端消息语言和管理员权限等级。
-- **显示**：默认隐藏、默认轮转、轮转间隔，以及一个可折叠的六榜子分类；每榜都有独立开关和独立重置按钮，默认启用前三榜。
+- **显示**：默认隐藏、默认轮转、轮转间隔，以及一个根据动态注册表生成的可折叠榜单子分类；每榜都有独立开关和独立重置按钮。
 - **黑名单**：可增删的玩家名正则列表，无效表达式会就地高亮；新增输入框有边框和示例占位提示。
 
 保存时使用与 JSON 配置相同的完整验证。保存成功或失败都会显示 toast，详细异常会写入日志。
 
 该界面不能穿过网络修改远程服务器。即使玩家连接的远程服务器也安装了 The-Starry-List，客户端 ModMenu 页面编辑的仍是客户端自己的游戏目录。
+
+---
+
+## 新增榜单模块
+
+在 `com.flwolfy.starrylist.board` 下任意层级新增公开、非抽象的 `StarryListBoard` 子类，并具有隐式或显式的公开无参构造器。该类自行提供稳定的 `id()`、与语言无关的 `objectiveName()`、唯一的 `order()`、SGUI `icon()` 和 `register(...)` 统计逻辑；本地化 presentation 由基类解析。
+
+绑定到当前榜单的 `StarryListBoardRegistrar` 提供带黑名单与整数溢出保护的自动计分、延迟 runtime 访问，以及每榜每玩家隔离的持久化状态。因此普通榜单不需要修改配置管理器、计分服务、scoreboard 管理器、sidebar、指令、Cloth Config 或 SGUI。注册表只在 Mod 初始化时递归发现一次，严格校验元数据和重复项；类加载或校验失败会携带具体类名或冲突值中止启动。
+
+在 `register(...)` 中使用 Fabric 事件或原版服务端事件设施。内置放置榜监听原版成功放置后发出的 `BLOCK_PLACE` game event；移动榜则在每个服务端 tick 结束时读取玩家原版移动统计的增量。因此项目不再包含任何 Mixin 类，也不需要维护公共 Mixin JSON。
+
+榜单默认使用 `starrylist.board.<id>.title` 和 `starrylist.board.<id>.description` 两个本地化键。将正文加入各语言 JSON 后，基类会通过 `StarryListLangManager` 解析，并依次支持玩家语言、服务端配置语言、英文和键名回退。需要多行 lore 的模块可以重写 `loreTranslationKeys()`，所有面向玩家的正文仍保存在语言资源中。
+
+新增榜单不会自动加入现有配置，只有将其 ID 加入 `display.enabledBoards` 后才会启用。全新配置仍只默认启用 `mining`、`placing` 与 `mob_kills`。Java 类需要重新构建并重启才能发现；`/starryadmin reload` 永远不会重新扫描模块或创建第二份注册表。
 
 ---
 
@@ -315,7 +329,7 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内
 
 ### 可以添加第七个榜单吗？
 
-不可以。当前版本只管理六个固定榜单；服务器和玩家可以选择其子集及轮转方式，但不能改变内置顺序。
+可以。在 `com.flwolfy.starrylist.board` 下新增公开、非抽象且具有隐式或显式公开无参构造器的 `StarryListBoard` 子类，并在语言 JSON 中加入标题和说明键即可。注册表、配置 GUI、指令建议、sidebar 与 SGUI 都无需修改。榜单代码加入后需要重新构建并重启，配置重载不会热加载 Java 类。
 
 ### 为什么传送没有增加移动距离？
 
@@ -344,13 +358,13 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按上面的内
 需要 Java 25。仓库已包含 Gradle Wrapper：
 
 ```bash
-./gradlew clean build -x test
+./gradlew clean build
 ```
 
 Windows：
 
 ```powershell
-gradlew.bat clean build -x test
+gradlew.bat clean build
 ```
 
 构建产物位于 `build/libs/`。普通 JAR 用于安装，带 `-sources` 后缀的 JAR 包含源码。

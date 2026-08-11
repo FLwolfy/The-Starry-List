@@ -4,7 +4,7 @@ import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import com.flwolfy.starrylist.data.lang.StarryListLang;
-import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -87,10 +87,12 @@ final class StarryListClothConfigGUI {
         .setTooltip(Component.translatable("starrylist.config.rotation_interval.tooltip"))
         .setSaveConsumer(value -> values.rotationIntervalSeconds = value).build();
     List<AbstractConfigListEntry<?>> boardEntries = new ArrayList<>();
-    for (var board : new StarryListBoardRegistry().all()) {
+    for (var board : StarryListBoardRegistry.getInstance().all()) {
       String boardId = board.id();
       var boardEntry = entries.startBooleanToggle(
-          Component.translatable(board.translationKey()),
+          Component.literal(board.presentationFor(
+              Minecraft.getInstance().getLanguageManager().getSelected()
+          ).title()),
           values.enabledBoards.contains(boardId)
       ).setDefaultValue(StarryListConfigData.DEFAULT.display().enabledBoards().contains(boardId))
           .setTooltip(Component.translatable("starrylist.config.enabled_boards.tooltip"))

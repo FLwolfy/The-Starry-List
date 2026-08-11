@@ -85,6 +85,11 @@ public final class StarryListLangManager {
     return render(selected, key, arguments);
   }
 
+  /** Renders text for one of StarryList's bundled server languages. */
+  public Component textFor(StarryListLang language, String key, Object... arguments) {
+    return textFor(language == null ? null : language.getLangKey(), key, arguments);
+  }
+
   private Component render(String locale, String key, Object... arguments) {
     Map<String, String> selected = languages.getOrDefault(locale, Map.of());
     String pattern = selected.get(key);

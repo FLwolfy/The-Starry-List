@@ -1,6 +1,6 @@
 # The-Starry-List Mod Documentation
 
-**The-Starry-List** is a leaderboard mod for Minecraft 26.1 Fabric. It stores six gameplay statistics in vanilla scoreboard objectives and gives every player independent control over enabled boards, visibility, and rotation timing.
+**The-Starry-List** is an extensible leaderboard mod for Minecraft 26.1 Fabric. It stores gameplay statistics in vanilla scoreboard objectives and gives every player independent control over enabled boards, visibility, and rotation timing.
 
 简体中文文档见[这里](./README.cn.md)。
 
@@ -12,10 +12,10 @@ This project is a complete rewrite forked from [TheStarryMiningList](https://git
 
 ## Features
 
-- Six fixed built-in boards: mining, placing, mob kills, player kills, deaths, and travel distance.
+- Automatically discovered board modules, with mining, placing, mob kills, player kills, deaths, and travel distance built in.
 - Scores stored by vanilla scoreboard objectives without separate player score files.
 - Independent sidebar settings for every player.
-- Board selection, hiding, and optional rotation in a fixed built-in order.
+- Board selection, hiding, and optional rotation in each module's stable declared order.
 - Player-name regular-expression blacklisting for scoring and visibility.
 - Server defaults with persistent per-player overrides.
 - World-scoped scores and display preferences that survive server restarts.
@@ -24,7 +24,7 @@ This project is a complete rewrite forked from [TheStarryMiningList](https://git
 - Dedicated-server-only deployment; clients do not need the mod.
 - Optional Cloth Config graphical editor.
 
-The-Starry-List provides only the six boards documented below. Additional board types cannot be registered.
+Adding a `StarryListBoard` subclass below this project's `com.flwolfy.starrylist.board` module tree registers it automatically on the next start; no central ID or registration list is edited.
 
 ---
 
@@ -83,7 +83,7 @@ The client configuration screen cannot edit a remote dedicated server. A remote 
 | `deaths` | `sl_deaths` | Deaths | Player deaths from any cause |
 | `travel_distance` | `sl_travel` | Travel Distance | Whole blocks accumulated from vanilla continuous-movement statistics |
 
-Board IDs are used by configuration and commands. Objective names are the internal names stored in the vanilla scoreboard. All six IDs and objective names are fixed.
+Board IDs are used by configuration and commands. Objective names are the internal names stored in the vanilla scoreboard. Each discovered module contributes its own validated identifiers.
 
 ### Mining
 
@@ -136,7 +136,7 @@ Teleportation does not create these continuous-movement statistics, so `/tp`, en
 
 ## Scoreboard and saved data
 
-- All six boards use vanilla objectives with the `dummy` criterion.
+- Every registered board uses a vanilla objective with the `dummy` criterion.
 - The internal score owner is the player's UUID string, preventing a rename from creating a second score.
 - When a player joins, existing entries receive the player's current game name as their display component.
 - Vanilla `scoreboard.dat` stores scores, including negative values assigned by administrators.
@@ -199,9 +199,9 @@ The server selects one global message language. It sends already-rendered litera
 | `hiddenByDefault` | `boolean` | `false` | Whether players without an override hide the sidebar by default |
 | `rotationEnabled` | `boolean` | `true` | Whether the default profile rotates through multiple boards |
 | `rotationIntervalSeconds` | `int` | `20` | Default rotation interval from `1` through `3600` seconds |
-| `enabledBoards` | `string[]` | `["mining", "placing", "mob_kills"]` | Enabled default boards; only the six fixed IDs are accepted, with no duplicates; an empty list is allowed |
+| `enabledBoards` | `string[]` | `["mining", "placing", "mob_kills"]` | Enabled registered board IDs, with no duplicates; an empty list is allowed |
 
-Valid `enabledBoards` values are:
+Built-in `enabledBoards` values are:
 
 ```text
 mining
@@ -212,7 +212,7 @@ deaths
 travel_distance
 ```
 
-Array order does not customize display order. Enabled entries always use the built-in order shown above; disabling `rotationEnabled` pins the first enabled board. An empty list is valid and means that no StarryList board is currently available for display. Legacy `defaultBoards` is migrated automatically when loaded, and a legacy empty list remains empty.
+Array order does not customize display order. Enabled entries use the order declared by their board modules; disabling `rotationEnabled` pins the first enabled board. An empty list is valid and means that no StarryList board is currently available for display. A newly added board is absent from an existing configuration and therefore disabled by default.
 
 ### Blacklist (`blacklist`)
 
@@ -220,7 +220,7 @@ Array order does not customize display order. Enabled entries always use the bui
 |---|---|---|---|
 | `playerNamePatterns` | `string[]` | `[]` | Case-insensitive Java regular expressions matched against the complete player name |
 
-A matching player stops accumulating all six automatic statistics and is removed from visible objectives. Existing scores are archived per world rather than deleted and return when the player no longer matches. Invalid or blank expressions fail configuration validation. For example, `bot_.*` matches names beginning with `bot_`.
+A matching player stops accumulating all registered automatic statistics and is removed from visible objectives. Existing scores are archived per world rather than deleted and return when the player no longer matches. Invalid or blank expressions fail configuration validation. For example, `bot_.*` matches names beginning with `bot_`.
 
 After editing the file, run:
 
@@ -250,9 +250,9 @@ Changing a board, rotation, or interval stores a personal profile based on the e
 
 ## Player menu
 
-`/starry` requires no administrator permission and directly opens one fixed, non-paginated six-board inventory menu. It has no arguments or subcommands; console and command-block sources receive a player-only error.
+`/starry` requires no administrator permission and directly opens a fixed five-row board inventory menu. It has no arguments or subcommands; console and command-block sources receive a player-only error.
 
-The menu has five rows. Gray glass fills the top and bottom rows; light-gray glass provides the remaining separators and borders. Six adjacent board cards appear in fixed order. Enabled cards glow and disabled cards do not; the former skull icons use an iron sword, diamond sword, and totem so the glint remains visible. All six boards may be disabled; this leaves no StarryList sidebar to display while retaining the board toggles, rotation setting, and interval in the profile. Bottom controls restore defaults, independently hide or show the sidebar, toggle rotation, edit the `1`–`3600` second interval through an anvil screen with a Cancel button, and close the menu. Successful changes send a crisp experience-orb sound directly to the player, save immediately, and refresh the sidebar.
+The menu has five rows. Gray glass fills the top and bottom rows; light-gray glass provides the remaining separators and borders. Up to seven adjacent board cards appear per page in registry order. The current six-board layout is unchanged; when more than seven boards exist, cyclic previous/next arrows occupy the two side-border slots. Enabled cards glow and disabled cards do not. All boards may be disabled; this leaves no StarryList sidebar to display while retaining the board toggles, rotation setting, and interval in the profile. Bottom controls restore defaults, independently hide or show the sidebar, toggle rotation, edit the `1`–`3600` second interval through an anvil screen with a Cancel button, and close the menu. Successful changes send a crisp experience-orb sound directly to the player, save immediately, and refresh the sidebar.
 
 The menu is implemented with the SGui library bundled in the mod JAR. It uses vanilla container packets, so players do not install SGui or The-Starry-List locally. Menu text follows the player's reported `en_us` or `zh_cn` language and falls back to the configured server language and then English.
 
@@ -298,12 +298,26 @@ With Cloth Config and ModMenu installed on the client, the configuration screen 
 
 - **All**: the first category, containing expanded, synchronized copies of every real setting below.
 - **General**: server message language and administrator permission level.
-- **Display**: default visibility, rotation, interval, plus one collapsible six-board subcategory. Every board has its own toggle and reset button; the first three are enabled by default.
+- **Display**: default visibility, rotation, interval, plus one collapsible board subcategory generated from the dynamic registry. Every board has its own toggle and reset button.
 - **Blacklist**: an editable player-name regex list with inline highlighting; newly added input fields have a border and example placeholder.
 
 Saving uses the same complete validation as the JSON configuration. Success or failure appears as a toast, and detailed exceptions are written to the log.
 
 The screen cannot modify a remote server over the network. Even when a remote server also runs The-Starry-List, the client ModMenu page still edits only that client's game directory.
+
+---
+
+## Adding a board module
+
+Create a public concrete subclass of `StarryListBoard` anywhere below `com.flwolfy.starrylist.board`. It must have an implicit or explicit public no-argument constructor. The class supplies its stable `id()`, language-independent `objectiveName()`, unique `order()`, SGUI `icon()`, and statistic registration in `register(...)`; the base class resolves its localized presentation.
+
+The bound `StarryListBoardRegistrar` provides automatic scoring with blacklist and overflow handling, delayed runtime access, and a persistent per-player board-state namespace. Board code therefore does not need to modify the config manager, score service, scoreboard manager, sidebar, commands, Cloth Config, or SGUI. The registry recursively discovers classes once during Mod initialization, validates metadata and duplicates, and aborts startup with the offending class or value if loading fails.
+
+Use Fabric events or vanilla server event facilities from `register(...)`. The built-in placing board listens for successful vanilla `BLOCK_PLACE` game events, while travel samples deltas from the player's vanilla movement statistics at the end of each server tick. The project therefore has no Mixin classes or shared Mixin JSON to maintain.
+
+The conventional localization keys are `starrylist.board.<id>.title` and `starrylist.board.<id>.description`. Add their text to each bundled language JSON; the base class resolves them through `StarryListLangManager`, including player-locale, configured-language, English, and key fallbacks. A module needing multiple lore lines can override `loreTranslationKeys()` while keeping all user-facing content in language resources.
+
+New boards are disabled in an existing config until their IDs are added to `display.enabledBoards`. A newly generated config intentionally enables only `mining`, `placing`, and `mob_kills`. Rebuild and restart to discover Java classes; `/starryadmin reload` never rescans modules or creates another registry.
 
 ---
 
@@ -315,7 +329,7 @@ No. The server handles leaderboards, sidebar packets, scores, and commands, so a
 
 ### Can I add a seventh board?
 
-No. This version manages only six fixed boards. Servers and players can choose a subset and rotation behavior, but cannot change the built-in order.
+Yes. Add a public, concrete `StarryListBoard` subclass with an implicit or explicit public no-argument constructor below `com.flwolfy.starrylist.board`, then add its title and description keys to the language JSON files. The registry, config GUI, command suggestions, sidebar, and SGUI require no edits. Rebuild and restart after adding Java classes; configuration reload does not hot-load code.
 
 ### Why does teleportation not increase travel distance?
 
@@ -344,13 +358,13 @@ The current valid configuration continues running and no partial fields are appl
 Java 25 is required. The repository includes the Gradle Wrapper:
 
 ```bash
-./gradlew clean build -x test
+./gradlew clean build
 ```
 
 Windows:
 
 ```powershell
-gradlew.bat clean build -x test
+gradlew.bat clean build
 ```
 
 Artifacts are written to `build/libs/`. The regular JAR is the installable mod; the JAR with a `-sources` suffix contains source code.

@@ -7,9 +7,6 @@ import net.fabricmc.loader.api.FabricLoader;
 /** Optional ModMenu bridge. Cloth Config remains optional at runtime. */
 public final class StarryListModMenu implements ModMenuApi {
 
-  /** Creates the optional ModMenu entry point. */
-  public StarryListModMenu() {}
-
   /** {@inheritDoc} */
   @Override
   public ConfigScreenFactory<?> getModConfigScreenFactory() {

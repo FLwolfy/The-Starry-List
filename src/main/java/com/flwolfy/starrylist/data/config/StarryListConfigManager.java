@@ -177,9 +177,7 @@ public final class StarryListConfigManager {
         return new LoadResult(StarryListConfigData.DEFAULT, false, false);
       }
       JsonObject target = parsed.getAsJsonObject();
-      JsonObject defaults = GSON.toJsonTree(StarryListConfigData.DEFAULT).getAsJsonObject();
-      boolean normalized = StarryListConfigMigration.migrateLegacy(target);
-      normalized |= mergeDefaults(target, defaults);
+      boolean normalized = false;
       StarryListConfigData loaded = GSON.fromJson(target, StarryListConfigData.class);
       List<String> invalid = loaded == null ? List.of("root") : loaded.validate();
       if (!invalid.isEmpty()) {
@@ -210,23 +208,7 @@ public final class StarryListConfigManager {
     }
   }
 
-  private static boolean mergeDefaults(JsonObject target, JsonObject defaults) {
-    boolean changed = false;
-    for (var entry : defaults.entrySet()) {
-      if (!target.has(entry.getKey()) || target.get(entry.getKey()).isJsonNull()) {
-        target.add(entry.getKey(), entry.getValue().deepCopy());
-        changed = true;
-      } else if (entry.getValue().isJsonObject() && target.get(entry.getKey()).isJsonObject()) {
-        changed |= mergeDefaults(
-            target.getAsJsonObject(entry.getKey()),
-            entry.getValue().getAsJsonObject()
-        );
-      }
-    }
-    return changed;
-  }
-
-  static StarryListConfigData canonicalize(StarryListConfigData value) {
+  private static StarryListConfigData canonicalize(StarryListConfigData value) {
     if (value.display() == null || value.display().enabledBoards() == null) return value;
     return new StarryListConfigData(
         value.general(),

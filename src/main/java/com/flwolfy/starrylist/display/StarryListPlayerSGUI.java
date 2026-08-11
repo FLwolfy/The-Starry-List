@@ -1,9 +1,9 @@
 package com.flwolfy.starrylist.display;
 
 import com.flwolfy.starrylist.StarryListRuntime;
+import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
-import com.flwolfy.starrylist.scoreboard.StarryListBoardDefinition;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
@@ -19,15 +19,17 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 
-/** Provides the fixed six-board visual settings menu opened by {@code /starry}. */
-public final class StarryListPlayerGui extends SimpleGui {
+/** Provides the paginated board settings menu opened by {@code /starry}. */
+public final class StarryListPlayerSGUI extends SimpleGui {
 
   private static final int BOARD_START_SLOT = 19;
+  private static final int BOARDS_PER_PAGE = 7;
 
   private final StarryListRuntime runtime;
   private final String locale;
+  private int page;
 
-  private StarryListPlayerGui(ServerPlayer player, StarryListRuntime runtime) {
+  private StarryListPlayerSGUI(ServerPlayer player, StarryListRuntime runtime) {
     super(MenuType.GENERIC_9x5, player, false);
     this.runtime = runtime;
     this.locale = player.clientInformation().language();
@@ -43,7 +45,7 @@ public final class StarryListPlayerGui extends SimpleGui {
    * @param runtime active server services
    */
   public static void open(ServerPlayer player, StarryListRuntime runtime) {
-    new StarryListPlayerGui(player, runtime).open();
+    new StarryListPlayerSGUI(player, runtime).open();
   }
 
   private void render() {
@@ -69,10 +71,25 @@ public final class StarryListPlayerGui extends SimpleGui {
                 : text("starrylist.gui.state.visible").getString()
         )).build());
 
-    for (int index = 0; index < runtime.registry().all().size(); index++) {
-      StarryListBoardDefinition board = runtime.registry().all().get(index);
+    int pageCount = Math.max(1, (runtime.registry().all().size() + BOARDS_PER_PAGE - 1)
+        / BOARDS_PER_PAGE);
+    page = Math.floorMod(page, pageCount);
+    int firstBoard = page * BOARDS_PER_PAGE;
+    int lastBoard = Math.min(firstBoard + BOARDS_PER_PAGE, runtime.registry().all().size());
+    for (int index = firstBoard; index < lastBoard; index++) {
+      StarryListBoard board = runtime.registry().all().get(index);
       boolean selected = enabled.contains(board.id());
-      setSlot(BOARD_START_SLOT + index, boardButton(board, selected));
+      setSlot(BOARD_START_SLOT + index - firstBoard, boardButton(board, selected));
+    }
+    if (pageCount > 1) {
+      setSlot(18, new GuiElementBuilder(Items.ARROW)
+          .setName(text("starrylist.gui.page.previous").copy().withStyle(ChatFormatting.AQUA))
+          .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
+          .setCallback(() -> changePage(-1, pageCount)).build());
+      setSlot(26, new GuiElementBuilder(Items.ARROW)
+          .setName(text("starrylist.gui.page.next").copy().withStyle(ChatFormatting.AQUA))
+          .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
+          .setCallback(() -> changePage(1, pageCount)).build());
     }
 
     setSlot(36, new GuiElementBuilder(Items.CLOCK)
@@ -129,16 +146,17 @@ public final class StarryListPlayerGui extends SimpleGui {
   }
 
   private GuiElementBuilder boardButton(
-      StarryListBoardDefinition board,
+      StarryListBoard board,
       boolean selected
   ) {
-    GuiElementBuilder builder = new GuiElementBuilder(board.icon())
+    GuiElementBuilder builder = new GuiElementBuilder(board.iconForGui())
         .setName(board.displayName(player).copy().withStyle(
             selected ? ChatFormatting.GREEN : ChatFormatting.GRAY
-        ))
-        .addLoreLine(text(board.translationKey() + ".description").copy()
-            .withStyle(ChatFormatting.GRAY))
-        .addLoreLine(text(
+        ));
+    for (Component line : board.lore(player)) {
+      builder.addLoreLine(line.copy().withStyle(ChatFormatting.GRAY));
+    }
+    builder.addLoreLine(text(
             selected ? "starrylist.gui.board.enabled" : "starrylist.gui.board.disabled"
         ));
     if (selected) {
@@ -146,6 +164,11 @@ public final class StarryListPlayerGui extends SimpleGui {
     }
     return builder.addLoreLine(text("starrylist.gui.board.toggle"))
         .setCallback(() -> toggle(board.id()));
+  }
+
+  private void changePage(int offset, int pageCount) {
+    page = Math.floorMod(page + offset, pageCount);
+    render();
   }
 
   private void toggle(String boardId) {
@@ -183,7 +206,7 @@ public final class StarryListPlayerGui extends SimpleGui {
         .setName(text("starrylist.gui.interval.cancel").copy().withStyle(ChatFormatting.RED))
         .setCallback(() -> {
           input.close();
-          StarryListPlayerGui.open(player, runtime);
+          StarryListPlayerSGUI.open(player, runtime);
         }).build());
     Integer seconds = parseInterval(value);
     GuiElementBuilder result = new GuiElementBuilder(seconds == null ? Items.BARRIER : Items.LIME_DYE)
@@ -199,7 +222,7 @@ public final class StarryListPlayerGui extends SimpleGui {
         ));
         runtime.display().update(player, true);
         playSuccessSound();
-        StarryListPlayerGui.open(player, runtime);
+        StarryListPlayerSGUI.open(player, runtime);
       });
     }
     input.setSlot(2, result.build());

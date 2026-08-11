@@ -13,9 +13,6 @@ import java.lang.reflect.Type;
 public final class StarryListLangAdapter
     implements JsonSerializer<StarryListLang>, JsonDeserializer<StarryListLang> {
 
-  /** Creates a Gson adapter for StarryList language values. */
-  public StarryListLangAdapter() {}
-
   /** {@inheritDoc} */
   @Override
   public JsonElement serialize(

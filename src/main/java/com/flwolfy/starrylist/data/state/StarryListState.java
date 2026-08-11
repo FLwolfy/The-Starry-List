@@ -18,14 +18,16 @@ public final class StarryListState extends SavedData {
   private static final Codec<StarryListState> CODEC = RecordCodecBuilder.create(instance ->
       instance.group(
           Codec.unboundedMap(Codec.STRING, StarryListDisplayProfile.CODEC)
-              .optionalFieldOf("profiles", Map.of()).forGetter(state -> state.serializedProfiles()),
-          Codec.unboundedMap(Codec.STRING, Codec.INT)
-              .optionalFieldOf("travelRemainders", Map.of()).forGetter(state -> state.travelRemainders),
+              .fieldOf("profiles").forGetter(state -> state.serializedProfiles()),
+          Codec.unboundedMap(
+              Codec.STRING,
+              Codec.unboundedMap(Codec.STRING, net.minecraft.nbt.CompoundTag.CODEC)
+          ).fieldOf("boardData").forGetter(state -> state.boardData),
           Codec.unboundedMap(Codec.STRING, Codec.STRING)
-              .optionalFieldOf("archivedPlayerNames", Map.of())
+              .fieldOf("archivedPlayerNames")
               .forGetter(state -> state.archivedPlayerNames),
           Codec.unboundedMap(Codec.STRING, Codec.unboundedMap(Codec.STRING, Codec.INT))
-              .optionalFieldOf("archivedScores", Map.of()).forGetter(state -> state.archivedScores)
+              .fieldOf("archivedScores").forGetter(state -> state.archivedScores)
       ).apply(instance, StarryListState::new)
   );
 
@@ -38,7 +40,7 @@ public final class StarryListState extends SavedData {
   );
 
   private final Map<UUID, StarryListDisplayProfile> profiles = new HashMap<>();
-  private final Map<String, Integer> travelRemainders = new HashMap<>();
+  private final Map<String, Map<String, net.minecraft.nbt.CompoundTag>> boardData = new HashMap<>();
   private final Map<String, String> archivedPlayerNames = new HashMap<>();
   private final Map<String, Map<String, Integer>> archivedScores = new HashMap<>();
 
@@ -46,7 +48,7 @@ public final class StarryListState extends SavedData {
 
   private StarryListState(
       Map<String, StarryListDisplayProfile> profiles,
-      Map<String, Integer> travelRemainders,
+      Map<String, Map<String, net.minecraft.nbt.CompoundTag>> boardData,
       Map<String, String> archivedPlayerNames,
       Map<String, Map<String, Integer>> archivedScores
   ) {
@@ -58,7 +60,11 @@ public final class StarryListState extends SavedData {
         ));
       } catch (IllegalArgumentException ignored) {}
     });
-    this.travelRemainders.putAll(travelRemainders);
+    boardData.forEach((boardId, players) -> {
+      Map<String, net.minecraft.nbt.CompoundTag> copied = new HashMap<>();
+      players.forEach((playerId, tag) -> copied.put(playerId, tag.copy()));
+      this.boardData.put(boardId, copied);
+    });
     this.archivedPlayerNames.putAll(archivedPlayerNames);
     archivedScores.forEach((key, value) -> this.archivedScores.put(key, new HashMap<>(value)));
   }
@@ -115,19 +121,16 @@ public final class StarryListState extends SavedData {
     return size;
   }
 
-  /**
-   * Accumulates vanilla movement centimeters and returns newly completed whole blocks.
-   *
-   * @param playerId player UUID
-   * @param centimeters positive movement increment
-   * @return number of completed whole blocks
-   */
-  public int addTravel(UUID playerId, int centimeters) {
-    String key = playerId.toString();
-    int total = Math.max(0, travelRemainders.getOrDefault(key, 0)) + Math.max(0, centimeters);
-    travelRemainders.put(key, total % 100);
+  /** Returns persistent state isolated by board ID and player UUID. */
+  public StarryListBoardState boardState(String boardId, UUID playerId) {
+    net.minecraft.nbt.CompoundTag data = boardData
+        .computeIfAbsent(boardId, ignored -> new HashMap<>())
+        .computeIfAbsent(playerId.toString(), ignored -> new net.minecraft.nbt.CompoundTag());
+    return new StarryListBoardState(this, data);
+  }
+
+  void markBoardStateDirty() {
     setDirty();
-    return total / 100;
   }
 
   /** Stores one hidden score while a player is blacklisted. */
@@ -159,16 +162,15 @@ public final class StarryListState extends SavedData {
   }
 
   /** Removes one archived score and prunes empty player records. */
-  public boolean removeArchivedScore(UUID playerId, String boardId) {
+  public void removeArchivedScore(UUID playerId, String boardId) {
     String key = playerId.toString();
     Map<String, Integer> scores = archivedScores.get(key);
-    if (scores == null || scores.remove(boardId) == null) return false;
+    if (scores == null || scores.remove(boardId) == null) return;
     if (scores.isEmpty()) {
       archivedScores.remove(key);
       archivedPlayerNames.remove(key);
     }
     setDirty();
-    return true;
   }
 
   /** Removes all archived values for one leaderboard. */

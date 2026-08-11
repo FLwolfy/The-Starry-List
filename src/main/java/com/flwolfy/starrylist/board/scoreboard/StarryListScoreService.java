@@ -1,7 +1,9 @@
-package com.flwolfy.starrylist.scoreboard;
+package com.flwolfy.starrylist.board.scoreboard;
 
 import com.flwolfy.starrylist.data.config.StarryListBlacklist;
 import com.flwolfy.starrylist.data.state.StarryListState;
+import com.flwolfy.starrylist.board.base.StarryListBoard;
+import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +28,7 @@ public final class StarryListScoreService {
    * Creates a score service for the active server and registry.
    *
    * @param server active Minecraft server
-   * @param registry current fixed leaderboard registry supplier
+   * @param registry current discovered leaderboard registry supplier
    * @param state world data used to persist hidden blacklist scores
    * @param blacklist active compiled player-name matcher
    */
@@ -102,7 +104,11 @@ public final class StarryListScoreService {
   /** Adds an automatically collected statistic unless the player is blacklisted. */
   public int addAutomatic(String boardId, ServerPlayer player, int delta) {
     if (blacklist.matches(player.getGameProfile().name())) return get(boardId, player.getUUID());
-    return add(boardId, player, delta);
+    int current = get(boardId, player.getUUID());
+    long candidate = (long) current + delta;
+    int safeValue = candidate > Integer.MAX_VALUE ? Integer.MAX_VALUE
+        : candidate < Integer.MIN_VALUE ? Integer.MIN_VALUE : (int) candidate;
+    return set(boardId, player.getUUID(), player.getGameProfile().name(), safeValue);
   }
 
   /** Returns whether automatic statistics are disabled for the supplied player. */
@@ -240,7 +246,7 @@ public final class StarryListScoreService {
   }
 
   private Objective objective(String boardId) {
-    StarryListBoardDefinition board = registry.get().get(boardId)
+    StarryListBoard board = registry.get().get(boardId)
         .orElseThrow(() -> new IllegalArgumentException("Unknown board: " + boardId));
     Objective objective = server.getScoreboard().getObjective(board.objectiveName());
     if (objective == null) throw new IllegalStateException("Board objective is not active: " + boardId);

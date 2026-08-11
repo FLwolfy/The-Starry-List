@@ -10,7 +10,7 @@ import java.util.Locale;
  * Persistent per-player sidebar mode, enabled boards, and rotation settings.
  *
  * @param mode relationship to server defaults
- * @param boards enabled personal board identifiers in fixed built-in order
+ * @param boards enabled personal board identifiers in discovered canonical order
  * @param rotationEnabled whether multiple boards rotate
  * @param rotationIntervalSeconds personal rotation interval in seconds
  */
