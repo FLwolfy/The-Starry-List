@@ -15,9 +15,8 @@ import net.minecraft.network.chat.Component;
 /** Expanded subcategory whose entries can be replaced without rebuilding its screen. */
 public final class StarryListRefreshableSubCategoryEntry extends StarryListSubCategoryEntry {
 
-  private static final int BUTTON_WIDTH = 80;
-
   private final Button refreshButton;
+  private final int resetSlotWidth;
 
   /**
    * Creates a refreshable expanded subcategory.
@@ -37,7 +36,10 @@ public final class StarryListRefreshableSubCategoryEntry extends StarryListSubCa
     refreshButton = Button.builder(
         Component.translatable("starrylist.config.boards.custom.refresh.button"),
         ignored -> refresh.run()
-    ).bounds(0, 0, BUTTON_WIDTH, 20).build();
+    ).bounds(0, 0, 0, 20).build();
+    resetSlotWidth = net.minecraft.client.Minecraft.getInstance().font.width(
+        builder.getResetButtonKey()
+    ) + 6;
     refreshButton.setTooltip(Tooltip.create(Component.translatable(
         "starrylist.config.boards.custom.refresh.tooltip"
     )));
@@ -49,6 +51,7 @@ public final class StarryListRefreshableSubCategoryEntry extends StarryListSubCa
    * @param replacement replacement child entries
    */
   public void replaceEntries(List<AbstractConfigListEntry<?>> replacement) {
+    setFocused(null);
     List<AbstractConfigListEntry<?>> entries = getValue();
     entries.clear();
     entries.addAll(replacement);
@@ -72,8 +75,9 @@ public final class StarryListRefreshableSubCategoryEntry extends StarryListSubCa
         graphics, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, delta
     );
     refreshButton.active = isEditable();
-    refreshButton.setX(x + entryWidth - BUTTON_WIDTH);
+    refreshButton.setX(StarryListControlLayout.valueX(x, entryWidth));
     refreshButton.setY(y);
+    refreshButton.setWidth(StarryListControlLayout.valueWidth(resetSlotWidth));
     refreshButton.extractRenderState(graphics, mouseX, mouseY, delta);
   }
 

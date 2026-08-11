@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.modmenu.entry.scalar;
 
 import com.flwolfy.starrylist.modmenu.builder.StarryListEntryContext;
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListControlLayout;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListPendingEntry;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListTooltipEntry;
 import java.util.List;
@@ -13,12 +14,9 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.network.chat.Component;
 
-/** Model-bound integer field implemented without deprecated Cloth internals. */
+/** Model-bound integer configuration field. */
 public final class StarryListIntegerEntry extends StarryListTooltipEntry<Integer>
     implements StarryListPendingEntry {
-
-  private static final int CONTROL_WIDTH = 150;
-  private static final int GAP = 2;
 
   private final StarryListEntryContext context;
   private final Integer minimum;
@@ -49,7 +47,7 @@ public final class StarryListIntegerEntry extends StarryListTooltipEntry<Integer
     original = (Integer) context.field().value();
     defaultValue = (Integer) context.field().defaultValue();
     textField = new EditBox(
-        Minecraft.getInstance().font, 0, 0, CONTROL_WIDTH, 20, context.label()
+        Minecraft.getInstance().font, 0, 0, 0, 20, context.label()
     );
     textField.setValue(Integer.toString(original));
     resetButton = Button.builder(
@@ -71,12 +69,20 @@ public final class StarryListIntegerEntry extends StarryListTooltipEntry<Integer
 
   @Override
   public Optional<Component> getError() {
-    Optional<Integer> parsed = parse();
-    if (parsed.isEmpty() || minimum != null && parsed.get() < minimum
-        || maximum != null && parsed.get() > maximum) {
-      return Optional.of(Component.translatable("text.cloth-config.error.invalid_value"));
+    if (context.suppressErrors()) {
+      return Optional.empty();
     }
-    return context.model().error(context.field().path(), context.suppressErrors());
+    Optional<Integer> parsed = parse();
+    if (parsed.isEmpty()) {
+      return Optional.of(Component.translatable("starrylist.config.integer.invalid"));
+    }
+    if (minimum != null && parsed.get() < minimum
+        || maximum != null && parsed.get() > maximum) {
+      return Optional.of(Component.translatable(
+          "starrylist.config." + context.field().path() + ".invalid"
+      ));
+    }
+    return context.model().error(context.field().path(), false);
   }
 
   @Override
@@ -96,13 +102,15 @@ public final class StarryListIntegerEntry extends StarryListTooltipEntry<Integer
     graphics.text(
         Minecraft.getInstance().font, getDisplayedFieldName(), x, y + 6, getPreferredTextColor()
     );
-    int resetX = x + entryWidth - resetButton.getWidth();
+    int resetX = StarryListControlLayout.resetX(
+        x, entryWidth, resetButton.getWidth()
+    );
     resetButton.setX(resetX);
     resetButton.setY(y);
     resetButton.active = isEditable() && !textField.getValue().equals(Integer.toString(defaultValue));
-    textField.setX(x + entryWidth - CONTROL_WIDTH);
+    textField.setX(StarryListControlLayout.valueX(x, entryWidth));
     textField.setY(y);
-    textField.setWidth(CONTROL_WIDTH - resetButton.getWidth() - GAP);
+    textField.setWidth(StarryListControlLayout.valueWidth(resetButton.getWidth()));
     textField.setEditable(isEditable());
     textField.extractRenderState(graphics, mouseX, mouseY, delta);
     resetButton.extractRenderState(graphics, mouseX, mouseY, delta);

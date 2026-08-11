@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.modmenu.entry.scalar;
 
 import com.flwolfy.starrylist.modmenu.builder.StarryListEntryContext;
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListControlLayout;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListTooltipEntry;
 import java.util.List;
 import java.util.Optional;
@@ -13,9 +14,6 @@ import net.minecraft.network.chat.Component;
 
 /** Model-bound enum selector used by independently rendered configuration views. */
 public final class StarryListEnumEntry extends StarryListTooltipEntry<Enum<?>> {
-
-  private static final int VALUE_WIDTH = 110;
-  private static final int GAP = 4;
 
   private final StarryListEntryContext context;
   private final Enum<?> original;
@@ -36,7 +34,7 @@ public final class StarryListEnumEntry extends StarryListTooltipEntry<Enum<?>> {
     defaultValue = (Enum<?>) context.field().defaultValue();
     constants = (Enum<?>[]) context.field().rawType().getEnumConstants();
     valueButton = Button.builder(Component.empty(), ignored -> advance())
-        .bounds(0, 0, VALUE_WIDTH, 20).build();
+        .bounds(0, 0, 0, 20).build();
     resetButton = Button.builder(context.resetText(), ignored -> {
       context.model().set(context.field().path(), defaultValue);
       updateLabel();
@@ -84,12 +82,15 @@ public final class StarryListEnumEntry extends StarryListTooltipEntry<Enum<?>> {
     graphics.text(
         Minecraft.getInstance().font, getDisplayedFieldName(), x, y + 6, getPreferredTextColor()
     );
-    int resetX = x + entryWidth - resetButton.getWidth();
+    int resetX = StarryListControlLayout.resetX(
+        x, entryWidth, resetButton.getWidth()
+    );
     resetButton.setX(resetX);
     resetButton.setY(y);
     resetButton.active = isEditable() && getValue() != defaultValue;
-    valueButton.setX(resetX - GAP - VALUE_WIDTH);
+    valueButton.setX(StarryListControlLayout.valueX(x, entryWidth));
     valueButton.setY(y);
+    valueButton.setWidth(StarryListControlLayout.valueWidth(resetButton.getWidth()));
     valueButton.active = isEditable();
     valueButton.extractRenderState(graphics, mouseX, mouseY, delta);
     resetButton.extractRenderState(graphics, mouseX, mouseY, delta);

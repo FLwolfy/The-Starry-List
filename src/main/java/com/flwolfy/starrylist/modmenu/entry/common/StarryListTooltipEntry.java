@@ -10,7 +10,7 @@ import me.shedaniel.math.Point;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
-/** Adds Cloth Config tooltip behavior without using its deprecated internal base entry. */
+/** Adds reusable Cloth Config tooltip behavior to a configuration entry. */
 public abstract class StarryListTooltipEntry<T> extends AbstractConfigListEntry<T> {
 
   private final Supplier<Optional<Component[]>> tooltipSupplier;
@@ -54,7 +54,7 @@ public abstract class StarryListTooltipEntry<T> extends AbstractConfigListEntry<
       tooltipSupplier.get().ifPresent(values -> lines.addAll(List.of(values)));
     }
     if (!isEnabled()) {
-      lines.add(Component.translatable("text.cloth-config.disabled_tooltip"));
+      lines.add(Component.translatable("starrylist.config.disabled.tooltip"));
     }
     if (!lines.isEmpty()) {
       addTooltip(Tooltip.of(

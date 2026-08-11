@@ -22,6 +22,8 @@ public class StarryListSubCategoryEntry
     extends AbstractConfigListEntry<List<AbstractConfigListEntry<?>>> implements Expandable {
 
   private final SubCategoryListEntry delegate;
+  private final GuiEventListener labelWidget;
+  private final NarratableEntry labelNarratable;
   private final boolean suppressErrors;
   private final Rectangle interactionArea = new Rectangle();
 
@@ -45,6 +47,8 @@ public class StarryListSubCategoryEntry
     var subcategory = builder.startSubCategory(title).setExpanded(expanded);
     subcategory.addAll(entries);
     delegate = subcategory.build();
+    labelWidget = delegate.children().getFirst();
+    labelNarratable = delegate.narratables().getFirst();
     this.suppressErrors = suppressErrors;
     setReferenceProviderEntries(new ArrayList<>(entries));
   }
@@ -159,12 +163,18 @@ public class StarryListSubCategoryEntry
 
   @Override
   public List<? extends GuiEventListener> children() {
-    return delegate.children();
+    List<GuiEventListener> children = new ArrayList<>();
+    children.add(labelWidget);
+    children.addAll(getValue());
+    return children;
   }
 
   @Override
   public List<? extends NarratableEntry> narratables() {
-    return delegate.narratables();
+    List<NarratableEntry> narratables = new ArrayList<>();
+    narratables.add(labelNarratable);
+    narratables.addAll(getValue());
+    return narratables;
   }
 
   @Override
@@ -189,12 +199,12 @@ public class StarryListSubCategoryEntry
 
   @Override
   public boolean mouseReleased(MouseButtonEvent event) {
-    return delegate.mouseReleased(event);
+    return super.mouseReleased(event);
   }
 
   @Override
   public boolean mouseDragged(MouseButtonEvent event, double offsetX, double offsetY) {
-    return delegate.mouseDragged(event, offsetX, offsetY);
+    return super.mouseDragged(event, offsetX, offsetY);
   }
 
   @Override
@@ -204,22 +214,22 @@ public class StarryListSubCategoryEntry
       double horizontalAmount,
       double verticalAmount
   ) {
-    return delegate.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
   }
 
   @Override
   public boolean keyPressed(KeyEvent event) {
-    return delegate.keyPressed(event);
+    return super.keyPressed(event);
   }
 
   @Override
   public boolean keyReleased(KeyEvent event) {
-    return delegate.keyReleased(event);
+    return super.keyReleased(event);
   }
 
   @Override
   public boolean charTyped(CharacterEvent event) {
-    return delegate.charTyped(event);
+    return super.charTyped(event);
   }
 
   @Override

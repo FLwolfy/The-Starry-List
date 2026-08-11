@@ -7,6 +7,7 @@ import com.flwolfy.starrylist.modmenu.entry.blacklist.StarryListBlacklistEditorM
 import com.flwolfy.starrylist.modmenu.entry.blacklist.StarryListBlacklistListEntry;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListAllCategoryEntry;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListPendingEntry;
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListSubCategoryEntry;
 import com.flwolfy.starrylist.modmenu.model.StarryListConfigEditorModel;
 import com.flwolfy.starrylist.modmenu.section.StarryListBoardSection;
 import java.lang.reflect.RecordComponent;
@@ -155,11 +156,13 @@ public final class StarryListClothConfigLayout {
           ).build());
           result.addAll(nested);
         } else {
-          var subcategory = entries.startSubCategory(
-              Component.translatable(BASE_KEY + path)
-          ).setExpanded(true);
-          subcategory.addAll(nested);
-          result.add(subcategory.build());
+          result.add(new StarryListSubCategoryEntry(
+              entries,
+              Component.translatable(BASE_KEY + path),
+              nested,
+              true,
+              suppressErrors
+          ));
         }
       } else if (!registry.hidden(path)) {
         result.add(buildEntry(path, suppressErrors));

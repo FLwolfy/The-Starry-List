@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import me.shedaniel.clothconfig2.gui.entries.AbstractTextFieldListListEntry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.network.chat.Component;
 
 /** Category-local regex list whose initial and dynamic rows use the same custom cell type. */
@@ -64,6 +65,19 @@ public final class StarryListBlacklistListEntry extends AbstractTextFieldListLis
   }
 
   @Override
+  public boolean isMouseOver(double mouseX, double mouseY) {
+    if (super.isMouseOver(mouseX, mouseY)) {
+      return true;
+    }
+    for (GuiEventListener child : children()) {
+      if (child.isMouseOver(mouseX, mouseY)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
   public void extractRenderState(
       GuiGraphicsExtractor graphics,
       int index,
@@ -110,6 +124,10 @@ public final class StarryListBlacklistListEntry extends AbstractTextFieldListLis
     }
     replaceCells(replacement);
     observedValues = List.copyOf(replacement);
+  }
+
+  int numberOf(StarryListBlacklistPatternCell cell) {
+    return cells.indexOf(cell) + 1;
   }
 
   private void replaceCells(List<String> replacement) {

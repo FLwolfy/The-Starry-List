@@ -5,10 +5,7 @@ import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import com.flwolfy.starrylist.board.script.StarryListScriptManager;
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
 import com.flwolfy.starrylist.modmenu.model.StarryListConfigEditorModel;
-import java.lang.ref.WeakReference;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
-import me.shedaniel.clothconfig2.gui.AbstractConfigScreen;
-import me.shedaniel.clothconfig2.gui.ClothConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,12 +15,6 @@ import net.minecraft.network.chat.Component;
 public final class StarryListClothConfigScreenController {
 
   private static final SystemToast.SystemToastId SAVE_RESULT = new SystemToast.SystemToastId();
-  private static WeakReference<Screen> activeScreen = new WeakReference<>(null);
-  private static WeakReference<ClothConfigScreen> pendingScrollScreen = new WeakReference<>(null);
-  private static Screen activeParent;
-  private static long activeRevision;
-  private static double pendingScrollAmount;
-  private static int pendingScrollAttempts;
 
   private StarryListClothConfigScreenController() {}
 
@@ -35,29 +26,6 @@ public final class StarryListClothConfigScreenController {
    */
   public static Screen create(Screen parent) {
     inspectOnOpen();
-    return create(parent, 0);
-  }
-
-  /**
-   * Rebuilds the active screen when the external board catalog revision changes.
-   */
-  public static void refreshIfRegistryChanged() {
-    restorePendingScroll();
-    Minecraft client = Minecraft.getInstance();
-    Screen screen = activeScreen.get();
-    long revision = StarryListBoardRegistry.getInstance().revision();
-    if (screen == null || client.screen != screen || activeRevision == revision) {
-      return;
-    }
-
-    int category = screen instanceof AbstractConfigScreen configScreen
-        ? configScreen.selectedCategoryIndex : 0;
-    double scroll = screen instanceof ClothConfigScreen configScreen
-        && configScreen.listWidget != null ? configScreen.listWidget.getScroll() : 0.0;
-    showWithScroll(client, create(activeParent, category), scroll);
-  }
-
-  private static Screen create(Screen parent, int selectedCategory) {
     ConfigBuilder builder = ConfigBuilder.create()
         .setParentScreen(parent)
         .setTitle(Component.translatable("starrylist.config.title"))
@@ -72,15 +40,7 @@ public final class StarryListClothConfigScreenController {
       layout.flush();
       save(layout.model());
     });
-
-    Screen screen = builder.build();
-    if (screen instanceof AbstractConfigScreen configScreen) {
-      configScreen.selectedCategoryIndex = selectedCategory;
-    }
-    activeScreen = new WeakReference<>(screen);
-    activeParent = parent;
-    activeRevision = StarryListBoardRegistry.getInstance().revision();
-    return screen;
+    return builder.build();
   }
 
   private static void inspectOnOpen() {
@@ -136,35 +96,5 @@ public final class StarryListClothConfigScreenController {
             : "starrylist.config.boards.custom.refresh.failed"),
         Component.literal(result.message())
     );
-  }
-
-  private static void showWithScroll(Minecraft client, Screen screen, double scrollAmount) {
-    client.setScreen(screen);
-    if (screen instanceof ClothConfigScreen configScreen) {
-      pendingScrollScreen = new WeakReference<>(configScreen);
-      pendingScrollAmount = scrollAmount;
-      pendingScrollAttempts = 4;
-      if (configScreen.listWidget != null) {
-        configScreen.listWidget.scrollTo(scrollAmount, false);
-      }
-    }
-  }
-
-  private static void restorePendingScroll() {
-    ClothConfigScreen screen = pendingScrollScreen.get();
-    if (screen == null || Minecraft.getInstance().screen != screen
-        || pendingScrollAttempts <= 0) {
-      pendingScrollScreen = new WeakReference<>(null);
-      return;
-    }
-    if (screen.listWidget == null) {
-      return;
-    }
-    if (Math.abs(screen.listWidget.getScroll() - pendingScrollAmount) < 0.5) {
-      pendingScrollScreen = new WeakReference<>(null);
-      return;
-    }
-    screen.listWidget.scrollTo(pendingScrollAmount, false);
-    pendingScrollAttempts--;
   }
 }

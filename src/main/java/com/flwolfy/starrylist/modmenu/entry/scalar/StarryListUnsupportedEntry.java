@@ -24,8 +24,9 @@ public final class StarryListUnsupportedEntry extends StarryListTooltipEntry<Obj
   public StarryListUnsupportedEntry(StarryListEntryContext context) {
     super(
         context.label().copy().withStyle(ChatFormatting.RED),
-        () -> Optional.of(new Component[]{Component.literal(
-            "No Cloth Config builder for " + context.field().genericType().getTypeName()
+        () -> Optional.of(new Component[]{Component.translatable(
+            "starrylist.config.unsupported.tooltip",
+            context.field().genericType().getTypeName()
         )})
     );
     value = context.field().value();
@@ -67,7 +68,8 @@ public final class StarryListUnsupportedEntry extends StarryListTooltipEntry<Obj
     );
     graphics.text(
         Minecraft.getInstance().font,
-        Component.literal("Unsupported").withStyle(ChatFormatting.RED),
+        Component.translatable("starrylist.config.unsupported")
+            .withStyle(ChatFormatting.RED),
         x + entryWidth - 70,
         y + 6,
         0xFFFF5555

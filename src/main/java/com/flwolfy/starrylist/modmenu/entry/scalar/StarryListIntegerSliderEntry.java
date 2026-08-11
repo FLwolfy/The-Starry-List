@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.modmenu.entry.scalar;
 
 import com.flwolfy.starrylist.modmenu.builder.StarryListEntryContext;
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListControlLayout;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListPendingEntry;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListTooltipEntry;
 import java.util.List;
@@ -14,12 +15,9 @@ import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-/** Model-bound bounded integer slider implemented without deprecated Cloth internals. */
+/** Model-bound bounded integer slider configuration field. */
 public final class StarryListIntegerSliderEntry extends StarryListTooltipEntry<Integer>
     implements StarryListPendingEntry {
-
-  private static final int CONTROL_WIDTH = 150;
-  private static final int GAP = 2;
 
   private final StarryListEntryContext context;
   private final int minimum;
@@ -100,10 +98,12 @@ public final class StarryListIntegerSliderEntry extends StarryListTooltipEntry<I
 
     Component title = getDisplayedFieldName();
     boolean bidirectional = Minecraft.getInstance().font.isBidirectional();
-    int resetX = bidirectional ? x : x + entryWidth - resetButton.getWidth();
+    int resetX = bidirectional ? x : StarryListControlLayout.resetX(
+        x, entryWidth, resetButton.getWidth()
+    );
     int sliderX = bidirectional
         ? resetX + resetButton.getWidth() + 1
-        : x + entryWidth - CONTROL_WIDTH;
+        : StarryListControlLayout.valueX(x, entryWidth);
     graphics.text(
         Minecraft.getInstance().font,
         title.getVisualOrderText(),
@@ -120,7 +120,7 @@ public final class StarryListIntegerSliderEntry extends StarryListTooltipEntry<I
     resetButton.active = isEditable() && value != defaultValue;
     slider.setX(sliderX);
     slider.setY(y);
-    slider.setWidth(CONTROL_WIDTH - resetButton.getWidth() - GAP);
+    slider.setWidth(StarryListControlLayout.valueWidth(resetButton.getWidth()));
     slider.active = isEditable();
     resetButton.extractRenderState(graphics, mouseX, mouseY, delta);
     slider.extractRenderState(graphics, mouseX, mouseY, delta);
@@ -154,7 +154,7 @@ public final class StarryListIntegerSliderEntry extends StarryListTooltipEntry<I
   private final class Slider extends AbstractSliderButton {
 
     private Slider(double progress) {
-      super(0, 0, CONTROL_WIDTH, 20, Component.empty(), progress);
+      super(0, 0, 0, 20, Component.empty(), progress);
       updateMessage();
     }
 

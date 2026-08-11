@@ -1,5 +1,6 @@
 package com.flwolfy.starrylist.modmenu.entry.board;
 
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListControlLayout;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListTooltipEntry;
 import java.util.List;
 import java.util.Optional;
@@ -17,10 +18,6 @@ import net.minecraft.network.chat.Component;
 /** Three-button board control bound to a shared board settings model. */
 public final class StarryListBoardListEntry
     extends StarryListTooltipEntry<StarryListBoardSettings> {
-
-  private static final int GAP = 4;
-  private static final int LOAD_WIDTH = 68;
-  private static final int DEFAULT_WIDTH = 104;
 
   private final Supplier<StarryListBoardSettings> valueSupplier;
   private final Consumer<StarryListBoardSettings> valueConsumer;
@@ -66,12 +63,12 @@ public final class StarryListBoardListEntry
       StarryListBoardSettings value = getValue();
       valueConsumer.accept(new StarryListBoardSettings(!value.loaded(), value.defaultEnabled()));
       updateLabels();
-    }).bounds(0, 0, LOAD_WIDTH, 20).build();
+    }).bounds(0, 0, 0, 20).build();
     defaultButton = Button.builder(Component.empty(), ignored -> {
       StarryListBoardSettings value = getValue();
       valueConsumer.accept(new StarryListBoardSettings(value.loaded(), !value.defaultEnabled()));
       updateLabels();
-    }).bounds(0, 0, DEFAULT_WIDTH, 20).build();
+    }).bounds(0, 0, 0, 20).build();
     resetButton = Button.builder(resetText, ignored -> {
       valueConsumer.accept(defaultValue);
       updateLabels();
@@ -114,15 +111,22 @@ public final class StarryListBoardListEntry
     graphics.text(
         Minecraft.getInstance().font, getDisplayedFieldName(), x, y + 6, getPreferredTextColor()
     );
-    int resetX = x + entryWidth - resetButton.getWidth();
-    int defaultX = resetX - GAP - DEFAULT_WIDTH;
-    int loadedX = defaultX - GAP - LOAD_WIDTH;
+    int resetX = StarryListControlLayout.resetX(
+        x, entryWidth, resetButton.getWidth()
+    );
+    int controlsX = StarryListControlLayout.valueX(x, entryWidth);
+    int controlsWidth = StarryListControlLayout.valueWidth(resetButton.getWidth());
+    int firstWidth = (controlsWidth - StarryListControlLayout.gap()) / 2;
+    int secondX = controlsX + firstWidth + StarryListControlLayout.gap();
+    int secondWidth = controlsWidth - firstWidth - StarryListControlLayout.gap();
     boolean active = valid && isEditable();
     loadedButton.active = active;
     defaultButton.active = active;
     resetButton.active = active && !getValue().equals(defaultValue);
-    position(loadedButton, graphics, loadedX, y, mouseX, mouseY, delta);
-    position(defaultButton, graphics, defaultX, y, mouseX, mouseY, delta);
+    loadedButton.setWidth(firstWidth);
+    defaultButton.setWidth(secondWidth);
+    position(loadedButton, graphics, controlsX, y, mouseX, mouseY, delta);
+    position(defaultButton, graphics, secondX, y, mouseX, mouseY, delta);
     position(resetButton, graphics, resetX, y, mouseX, mouseY, delta);
     if (!valid) {
       graphics.horizontalLine(x, x + entryWidth, y + 10, 0xFFFF0000);

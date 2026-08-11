@@ -7,6 +7,7 @@ import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.modmenu.entry.board.StarryListBoardListEntry;
 import com.flwolfy.starrylist.modmenu.entry.board.StarryListBoardSettings;
 import com.flwolfy.starrylist.modmenu.entry.common.StarryListRefreshableSubCategoryEntry;
+import com.flwolfy.starrylist.modmenu.entry.common.StarryListSubCategoryEntry;
 import com.flwolfy.starrylist.modmenu.model.StarryListConfigEditorModel;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -59,10 +60,13 @@ public final class StarryListBoardSection {
   public List<AbstractConfigListEntry<?>> createView() {
     List<AbstractConfigListEntry<?>> builtInEntries = createBuiltInEntries();
     List<AbstractConfigListEntry<?>> customEntries = createCustomEntries();
-    var builtInBuilder = entries.startSubCategory(
-        Component.translatable("starrylist.config.boards.builtin")
-    ).setExpanded(true);
-    builtInBuilder.addAll(builtInEntries);
+    var builtIn = new StarryListSubCategoryEntry(
+        entries,
+        Component.translatable("starrylist.config.boards.builtin"),
+        builtInEntries,
+        true,
+        false
+    );
     var custom = new StarryListRefreshableSubCategoryEntry(
         entries,
         Component.translatable("starrylist.config.boards.custom"),
@@ -70,7 +74,7 @@ public final class StarryListBoardSection {
         this::refresh
     );
     views.add(new View(custom));
-    return List.of(builtInBuilder.build(), custom);
+    return List.of(builtIn, custom);
   }
 
   /**
