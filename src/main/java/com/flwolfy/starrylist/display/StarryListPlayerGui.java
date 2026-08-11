@@ -1,4 +1,4 @@
-package com.flwolfy.starrylist.gui;
+package com.flwolfy.starrylist.display;
 
 import com.flwolfy.starrylist.StarryListRuntime;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
@@ -8,24 +8,27 @@ import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 
 /** Provides the fixed six-board visual settings menu opened by {@code /starry}. */
 public final class StarryListPlayerGui extends SimpleGui {
 
-  private static final int[] BOARD_START_SLOTS = {9, 12, 15, 27, 30, 33};
+  private static final int BOARD_START_SLOT = 19;
 
   private final StarryListRuntime runtime;
   private final String locale;
 
   private StarryListPlayerGui(ServerPlayer player, StarryListRuntime runtime) {
-    super(MenuType.GENERIC_9x6, player, false);
+    super(MenuType.GENERIC_9x5, player, false);
     this.runtime = runtime;
     this.locale = player.clientInformation().language();
     setTitle(text("starrylist.gui.title"));
@@ -44,14 +47,17 @@ public final class StarryListPlayerGui extends SimpleGui {
   }
 
   private void render() {
-    GuiElementBuilder filler = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
+    GuiElementBuilder filler = new GuiElementBuilder(Items.LIGHT_GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = 0; slot < getVirtualSize(); slot++) setSlot(slot, filler.build());
+    GuiElementBuilder edge = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
+        .setName(Component.empty());
+    for (int slot = 0; slot < 9; slot++) setSlot(slot, edge.build());
+    for (int slot = 36; slot < 45; slot++) setSlot(slot, edge.build());
 
     StarryListDisplayProfile saved = runtime.state().profile(player.getUUID());
     StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
     List<String> enabled = new ArrayList<>(editable.boards());
-    List<StarryListBoardDefinition> ordered = orderedBoards(enabled);
 
     setSlot(4, new GuiElementBuilder(Items.NETHER_STAR)
         .setName(text("starrylist.gui.status").copy().withStyle(ChatFormatting.GOLD))
@@ -63,17 +69,13 @@ public final class StarryListPlayerGui extends SimpleGui {
                 : text("starrylist.gui.state.visible").getString()
         )).build());
 
-    for (int index = 0; index < ordered.size(); index++) {
-      StarryListBoardDefinition board = ordered.get(index);
-      int start = BOARD_START_SLOTS[index];
+    for (int index = 0; index < runtime.registry().all().size(); index++) {
+      StarryListBoardDefinition board = runtime.registry().all().get(index);
       boolean selected = enabled.contains(board.id());
-      int selectedIndex = enabled.indexOf(board.id());
-      setSlot(start, moveButton(board, selectedIndex, -1));
-      setSlot(start + 1, boardButton(board, selected, selectedIndex));
-      setSlot(start + 2, moveButton(board, selectedIndex, 1));
+      setSlot(BOARD_START_SLOT + index, boardButton(board, selected));
     }
 
-    setSlot(45, new GuiElementBuilder(Items.CLOCK)
+    setSlot(36, new GuiElementBuilder(Items.CLOCK)
         .setName(text("starrylist.gui.use_default").copy().withStyle(ChatFormatting.AQUA))
         .addLoreLine(text("starrylist.gui.use_default.description"))
         .setCallback(() -> {
@@ -81,8 +83,8 @@ public final class StarryListPlayerGui extends SimpleGui {
           applyAndRender();
         }).build());
 
-    boolean hidden = saved.mode() == StarryListDisplayProfile.Mode.HIDDEN;
-    setSlot(47, new GuiElementBuilder(hidden ? Items.LIME_DYE : Items.GRAY_DYE)
+    boolean hidden = runtime.display().hiddenBySetting(player.getUUID());
+    setSlot(38, new GuiElementBuilder(hidden ? Items.LIME_DYE : Items.GRAY_DYE)
         .setName(text(hidden ? "starrylist.gui.show" : "starrylist.gui.hide").copy()
             .withStyle(hidden ? ChatFormatting.GREEN : ChatFormatting.GRAY))
         .setCallback(() -> {
@@ -90,21 +92,23 @@ public final class StarryListPlayerGui extends SimpleGui {
             saveCustom(runtime.display().editableProfile(player.getUUID()));
           } else {
             runtime.state().setProfile(player.getUUID(), new StarryListDisplayProfile(
-                StarryListDisplayProfile.Mode.HIDDEN, List.of(), false,
+                StarryListDisplayProfile.Mode.HIDDEN,
+                editable.boards(),
+                editable.rotationEnabled(),
                 editable.rotationIntervalSeconds()
             ));
           }
           applyAndRender();
         }).build());
 
-    setSlot(49, new GuiElementBuilder(editable.rotationEnabled() ? Items.LIME_DYE : Items.RED_DYE)
+    setSlot(40, new GuiElementBuilder(editable.rotationEnabled() ? Items.LIME_DYE : Items.RED_DYE)
         .setName(text("starrylist.gui.rotation").copy().withStyle(ChatFormatting.YELLOW))
         .addLoreLine(text(
             "starrylist.gui.rotation.state",
             stateName(editable.rotationEnabled())
         ))
         .setCallback(() -> {
-          saveCustom(new StarryListDisplayProfile(
+          saveSettings(new StarryListDisplayProfile(
               StarryListDisplayProfile.Mode.CUSTOM,
               editable.boards(),
               !editable.rotationEnabled(),
@@ -113,77 +117,46 @@ public final class StarryListPlayerGui extends SimpleGui {
           applyAndRender();
         }).build());
 
-    setSlot(51, new GuiElementBuilder(Items.REPEATER)
+    setSlot(42, new GuiElementBuilder(Items.REPEATER)
         .setName(text("starrylist.gui.interval").copy().withStyle(ChatFormatting.YELLOW))
         .addLoreLine(text("starrylist.gui.interval.value", editable.rotationIntervalSeconds()))
         .addLoreLine(text("starrylist.gui.interval.description"))
         .setCallback(() -> openIntervalInput(editable)).build());
 
-    setSlot(53, new GuiElementBuilder(Items.BARRIER)
+    setSlot(44, new GuiElementBuilder(Items.BARRIER)
         .setName(text("starrylist.gui.close").copy().withStyle(ChatFormatting.RED))
         .setCallback(() -> close()).build());
   }
 
   private GuiElementBuilder boardButton(
       StarryListBoardDefinition board,
-      boolean selected,
-      int selectedIndex
+      boolean selected
   ) {
     GuiElementBuilder builder = new GuiElementBuilder(board.icon())
         .setName(board.displayName(player).copy().withStyle(
             selected ? ChatFormatting.GREEN : ChatFormatting.GRAY
         ))
+        .addLoreLine(text(board.translationKey() + ".description").copy()
+            .withStyle(ChatFormatting.GRAY))
         .addLoreLine(text(
             selected ? "starrylist.gui.board.enabled" : "starrylist.gui.board.disabled"
         ));
     if (selected) {
-      builder.addLoreLine(text("starrylist.gui.board.position", selectedIndex + 1)).glow();
+      builder.glow();
     }
     return builder.addLoreLine(text("starrylist.gui.board.toggle"))
         .setCallback(() -> toggle(board.id()));
-  }
-
-  private eu.pb4.sgui.api.elements.GuiElement moveButton(
-      StarryListBoardDefinition board,
-      int selectedIndex,
-      int offset
-  ) {
-    StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
-    boolean available = selectedIndex >= 0
-        && selectedIndex + offset >= 0
-        && selectedIndex + offset < editable.boards().size();
-    GuiElementBuilder builder = new GuiElementBuilder(available ? Items.ARROW : Items.BLACK_STAINED_GLASS_PANE)
-        .setName(text(offset < 0 ? "starrylist.gui.move_up" : "starrylist.gui.move_down").copy()
-            .withStyle(available ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY));
-    if (available) builder.setCallback(() -> move(board.id(), offset));
-    return builder.build();
   }
 
   private void toggle(String boardId) {
     StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
     List<String> boards = new ArrayList<>(editable.boards());
     if (boards.contains(boardId)) {
-      if (boards.size() == 1) {
-        player.sendSystemMessage(text("starrylist.gui.board.last_enabled"));
-        return;
-      }
       boards.remove(boardId);
     } else {
       boards.add(boardId);
     }
-    saveCustom(copy(editable, boards));
-    applyAndRender();
-  }
-
-  private void move(String boardId, int offset) {
-    StarryListDisplayProfile editable = runtime.display().editableProfile(player.getUUID());
-    List<String> boards = new ArrayList<>(editable.boards());
-    int source = boards.indexOf(boardId);
-    int target = source + offset;
-    if (source < 0 || target < 0 || target >= boards.size()) return;
-    boards.remove(source);
-    boards.add(target, boardId);
-    saveCustom(copy(editable, boards));
+    saveSettings(copy(editable, boards));
     applyAndRender();
   }
 
@@ -206,19 +179,26 @@ public final class StarryListPlayerGui extends SimpleGui {
       String value,
       StarryListDisplayProfile editable
   ) {
+    input.setSlot(1, new GuiElementBuilder(Items.BARRIER)
+        .setName(text("starrylist.gui.interval.cancel").copy().withStyle(ChatFormatting.RED))
+        .setCallback(() -> {
+          input.close();
+          StarryListPlayerGui.open(player, runtime);
+        }).build());
     Integer seconds = parseInterval(value);
     GuiElementBuilder result = new GuiElementBuilder(seconds == null ? Items.BARRIER : Items.LIME_DYE)
         .setName(text(seconds == null
             ? "starrylist.gui.interval.invalid" : "starrylist.gui.interval.confirm"));
     if (seconds != null) {
       result.setCallback(() -> {
-        saveCustom(new StarryListDisplayProfile(
+        saveSettings(new StarryListDisplayProfile(
             StarryListDisplayProfile.Mode.CUSTOM,
             editable.boards(),
             editable.rotationEnabled(),
             seconds
         ));
         runtime.display().update(player, true);
+        playSuccessSound();
         StarryListPlayerGui.open(player, runtime);
       });
     }
@@ -232,15 +212,6 @@ public final class StarryListPlayerGui extends SimpleGui {
     } catch (NumberFormatException ignored) {
       return null;
     }
-  }
-
-  private List<StarryListBoardDefinition> orderedBoards(List<String> enabled) {
-    return runtime.registry().all().stream()
-        .sorted(Comparator.comparingInt(board -> {
-          int index = enabled.indexOf(board.id());
-          return index < 0 ? enabled.size() + runtime.registry().all().indexOf(board) : index;
-        }))
-        .toList();
   }
 
   private StarryListDisplayProfile copy(StarryListDisplayProfile source, List<String> boards) {
@@ -261,9 +232,34 @@ public final class StarryListPlayerGui extends SimpleGui {
     ));
   }
 
+  private void saveSettings(StarryListDisplayProfile profile) {
+    StarryListDisplayProfile.Mode mode = runtime.state().profile(player.getUUID()).mode()
+        == StarryListDisplayProfile.Mode.HIDDEN
+            ? StarryListDisplayProfile.Mode.HIDDEN
+            : StarryListDisplayProfile.Mode.CUSTOM;
+    runtime.state().setProfile(player.getUUID(), new StarryListDisplayProfile(
+        mode,
+        profile.boards(),
+        profile.rotationEnabled(),
+        profile.rotationIntervalSeconds()
+    ));
+  }
+
   private void applyAndRender() {
     runtime.display().update(player, true);
+    playSuccessSound();
     render();
+  }
+
+  private void playSuccessSound() {
+    player.connection.send(new ClientboundSoundEntityPacket(
+        Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
+        SoundSource.PLAYERS,
+        player,
+        0.8F,
+        1.35F,
+        player.getRandom().nextLong()
+    ));
   }
 
   private String stateName(boolean enabled) {

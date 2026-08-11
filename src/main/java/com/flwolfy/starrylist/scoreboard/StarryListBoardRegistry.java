@@ -13,22 +13,28 @@ public final class StarryListBoardRegistry {
 
   private static final List<StarryListBoardDefinition> BOARDS = List.of(
       new StarryListBoardDefinition(
-          "mining", "sl_mining", "starrylist.board.mining", Items.DIAMOND_PICKAXE
+          "mining", StarryListBoardIds.objectiveName("mining"),
+          "starrylist.board.mining", Items.DIAMOND_PICKAXE
       ),
       new StarryListBoardDefinition(
-          "placing", "sl_placing", "starrylist.board.placing", Items.BRICKS
+          "placing", StarryListBoardIds.objectiveName("placing"),
+          "starrylist.board.placing", Items.BRICKS
       ),
       new StarryListBoardDefinition(
-          "mob_kills", "sl_mob_kills", "starrylist.board.mob_kills", Items.ZOMBIE_HEAD
+          "mob_kills", StarryListBoardIds.objectiveName("mob_kills"),
+          "starrylist.board.mob_kills", Items.IRON_SWORD
       ),
       new StarryListBoardDefinition(
-          "player_kills", "sl_player_kills", "starrylist.board.player_kills", Items.PLAYER_HEAD
+          "player_kills", StarryListBoardIds.objectiveName("player_kills"),
+          "starrylist.board.player_kills", Items.DIAMOND_SWORD
       ),
       new StarryListBoardDefinition(
-          "deaths", "sl_deaths", "starrylist.board.deaths", Items.SKELETON_SKULL
+          "deaths", StarryListBoardIds.objectiveName("deaths"),
+          "starrylist.board.deaths", Items.TOTEM_OF_UNDYING
       ),
       new StarryListBoardDefinition(
-          "travel_distance", "sl_travel", "starrylist.board.travel_distance", Items.COMPASS
+          "travel_distance", StarryListBoardIds.objectiveName("travel_distance"),
+          "starrylist.board.travel_distance", Items.COMPASS
       )
   );
   private static final Map<String, StarryListBoardDefinition> BY_ID = BOARDS.stream()
@@ -63,6 +69,6 @@ public final class StarryListBoardRegistry {
    * @return immutable fixed board identifier list
    */
   public static List<String> ids() {
-    return BOARDS.stream().map(StarryListBoardDefinition::id).toList();
+    return StarryListBoardIds.values();
   }
 }

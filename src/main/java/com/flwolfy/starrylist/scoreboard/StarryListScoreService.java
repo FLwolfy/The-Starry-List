@@ -1,5 +1,9 @@
 package com.flwolfy.starrylist.scoreboard;
 
+import com.flwolfy.starrylist.data.config.StarryListBlacklist;
+import com.flwolfy.starrylist.data.state.StarryListState;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -15,19 +19,27 @@ public final class StarryListScoreService {
 
   private final MinecraftServer server;
   private final java.util.function.Supplier<StarryListBoardRegistry> registry;
+  private final StarryListState state;
+  private final StarryListBlacklist blacklist;
 
   /**
    * Creates a score service for the active server and registry.
    *
    * @param server active Minecraft server
    * @param registry current fixed leaderboard registry supplier
+   * @param state world data used to persist hidden blacklist scores
+   * @param blacklist active compiled player-name matcher
    */
   public StarryListScoreService(
       MinecraftServer server,
-      java.util.function.Supplier<StarryListBoardRegistry> registry
+      java.util.function.Supplier<StarryListBoardRegistry> registry,
+      StarryListState state,
+      StarryListBlacklist blacklist
   ) {
     this.server = server;
     this.registry = registry;
+    this.state = state;
+    this.blacklist = blacklist;
   }
 
   /**
@@ -38,6 +50,8 @@ public final class StarryListScoreService {
    * @return current score
    */
   public int get(String boardId, UUID playerId) {
+    Integer archived = state.archivedScore(playerId, boardId);
+    if (archived != null) return archived;
     Objective objective = objective(boardId);
     ReadOnlyScoreInfo score = server.getScoreboard().getPlayerScoreInfo(holder(playerId), objective);
     return score == null ? 0 : score.value();
@@ -56,6 +70,16 @@ public final class StarryListScoreService {
   }
 
   private int set(String boardId, UUID playerId, String displayName, int value) {
+    if (blacklist.matches(displayName)) {
+      state.archiveScore(playerId, displayName, boardId, value);
+      server.getScoreboard().resetSinglePlayerScore(holder(playerId), objective(boardId));
+      return value;
+    }
+    state.removeArchivedScore(playerId, boardId);
+    return setVisible(boardId, playerId, displayName, value);
+  }
+
+  private int setVisible(String boardId, UUID playerId, String displayName, int value) {
     ScoreAccess score = server.getScoreboard().getOrCreatePlayerScore(holder(playerId), objective(boardId));
     score.set(value);
     score.display(Component.literal(displayName));
@@ -75,12 +99,24 @@ public final class StarryListScoreService {
     return add(boardId, player.getUUID(), player.getGameProfile().name(), delta);
   }
 
+  /** Adds an automatically collected statistic unless the player is blacklisted. */
+  public int addAutomatic(String boardId, ServerPlayer player, int delta) {
+    if (blacklist.matches(player.getGameProfile().name())) return get(boardId, player.getUUID());
+    return add(boardId, player, delta);
+  }
+
+  /** Returns whether automatic statistics are disabled for the supplied player. */
+  public boolean isBlacklisted(ServerPlayer player) {
+    return blacklist.matches(player.getGameProfile().name());
+  }
+
   /**
    * Refreshes the vanilla display component attached to every existing StarryList score.
    *
    * @param player online player whose name should be refreshed
    */
   public void remember(ServerPlayer player) {
+    reconcilePlayer(player);
     for (var board : registry.get().all()) {
       Objective objective = server.getScoreboard().getObjective(board.objectiveName());
       if (objective == null) continue;
@@ -109,6 +145,7 @@ public final class StarryListScoreService {
    */
   public void reset(String boardId, UUID playerId) {
     server.getScoreboard().resetSinglePlayerScore(holder(playerId), objective(boardId));
+    state.removeArchivedScore(playerId, boardId);
   }
 
   /**
@@ -124,7 +161,82 @@ public final class StarryListScoreService {
     entries.forEach(entry -> scoreboard.resetSinglePlayerScore(
         ScoreHolder.forNameOnly(entry.owner()), objective
     ));
-    return entries.size();
+    return entries.size() + state.clearArchivedBoard(boardId);
+  }
+
+  /** Reconciles every visible and archived score against the active blacklist. */
+  public void reconcileBlacklist() {
+    ServerScoreboard scoreboard = server.getScoreboard();
+    for (var board : registry.get().all()) {
+      Objective objective = scoreboard.getObjective(board.objectiveName());
+      if (objective == null) continue;
+      for (var entry : List.copyOf(scoreboard.listPlayerScores(objective))) {
+        UUID playerId = parseUuid(entry.owner());
+        if (playerId == null) continue;
+        String playerName = currentName(
+            playerId, entry.display() == null ? entry.owner() : entry.display().getString()
+        );
+        if (!blacklist.matches(playerName)) continue;
+        state.archiveScore(playerId, playerName, board.id(), entry.value());
+        scoreboard.resetSinglePlayerScore(holder(playerId), objective);
+      }
+    }
+
+    for (Map.Entry<UUID, StarryListState.ArchivedScores> entry
+        : state.archivedPlayers().entrySet()) {
+      UUID playerId = entry.getKey();
+      String playerName = currentName(playerId, entry.getValue().playerName());
+      if (blacklist.matches(playerName)) {
+        entry.getValue().scores().forEach(
+            (boardId, value) -> state.archiveScore(playerId, playerName, boardId, value)
+        );
+        continue;
+      }
+      for (Map.Entry<String, Integer> score : entry.getValue().scores().entrySet()) {
+        if (registry.get().get(score.getKey()).isEmpty()) continue;
+        setVisible(score.getKey(), playerId, playerName, score.getValue());
+        state.removeArchivedScore(playerId, score.getKey());
+      }
+    }
+  }
+
+  private void reconcilePlayer(ServerPlayer player) {
+    UUID playerId = player.getUUID();
+    String playerName = player.getGameProfile().name();
+    if (blacklist.matches(playerName)) {
+      for (var board : registry.get().all()) {
+        Objective objective = objective(board.id());
+        ReadOnlyScoreInfo score = server.getScoreboard().getPlayerScoreInfo(holder(playerId), objective);
+        if (score != null) {
+          state.archiveScore(playerId, playerName, board.id(), score.value());
+          server.getScoreboard().resetSinglePlayerScore(holder(playerId), objective);
+        } else {
+          Integer archived = state.archivedScore(playerId, board.id());
+          if (archived != null) state.archiveScore(playerId, playerName, board.id(), archived);
+        }
+      }
+      return;
+    }
+    StarryListState.ArchivedScores archived = state.archivedPlayers().get(playerId);
+    if (archived == null) return;
+    for (Map.Entry<String, Integer> score : archived.scores().entrySet()) {
+      if (registry.get().get(score.getKey()).isEmpty()) continue;
+      setVisible(score.getKey(), playerId, playerName, score.getValue());
+      state.removeArchivedScore(playerId, score.getKey());
+    }
+  }
+
+  private String currentName(UUID playerId, String fallback) {
+    ServerPlayer online = server.getPlayerList().getPlayer(playerId);
+    return online == null ? fallback : online.getGameProfile().name();
+  }
+
+  private static UUID parseUuid(String value) {
+    try {
+      return UUID.fromString(value);
+    } catch (IllegalArgumentException exception) {
+      return null;
+    }
   }
 
   private Objective objective(String boardId) {

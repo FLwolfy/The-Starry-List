@@ -108,6 +108,7 @@ public final class StarryListConfigManager {
       StarryListMod.LOGGER.error("Refusing invalid StarryList config fields: {}", invalid);
       return false;
     }
+    replacement = canonicalize(replacement);
     LOCK.writeLock().lock();
     StarryListConfigData previous = data;
     try {
@@ -177,12 +178,29 @@ public final class StarryListConfigManager {
       }
       JsonObject target = parsed.getAsJsonObject();
       JsonObject defaults = GSON.toJsonTree(StarryListConfigData.DEFAULT).getAsJsonObject();
-      boolean normalized = mergeDefaults(target, defaults);
+      boolean normalized = StarryListConfigMigration.migrateLegacy(target);
+      normalized |= mergeDefaults(target, defaults);
       StarryListConfigData loaded = GSON.fromJson(target, StarryListConfigData.class);
       List<String> invalid = loaded == null ? List.of("root") : loaded.validate();
       if (!invalid.isEmpty()) {
         StarryListMod.LOGGER.error("Invalid StarryList config fields: {}", invalid);
         return new LoadResult(StarryListConfigData.DEFAULT, false, normalized);
+      }
+      if (loaded != null && loaded.display() != null && loaded.display().enabledBoards() != null) {
+        List<String> canonical = StarryListConfigData.normalizeIds(loaded.display().enabledBoards());
+        if (!canonical.equals(loaded.display().enabledBoards())) {
+          loaded = new StarryListConfigData(
+              loaded.general(),
+              new StarryListConfigData.Display(
+                  loaded.display().hiddenByDefault(),
+                  loaded.display().rotationEnabled(),
+                  loaded.display().rotationIntervalSeconds(),
+                  canonical
+              ),
+              loaded.blacklist()
+          );
+          normalized = true;
+        }
       }
       StarryListMod.LOGGER.info("Loaded StarryList config from {}", CONFIG_PATH);
       return new LoadResult(loaded, true, normalized);
@@ -206,6 +224,20 @@ public final class StarryListConfigManager {
       }
     }
     return changed;
+  }
+
+  static StarryListConfigData canonicalize(StarryListConfigData value) {
+    if (value.display() == null || value.display().enabledBoards() == null) return value;
+    return new StarryListConfigData(
+        value.general(),
+        new StarryListConfigData.Display(
+            value.display().hiddenByDefault(),
+            value.display().rotationEnabled(),
+            value.display().rotationIntervalSeconds(),
+            StarryListConfigData.normalizeIds(value.display().enabledBoards())
+        ),
+        value.blacklist()
+    );
   }
 
   private static void saveStatic(StarryListConfigData value) throws Exception {

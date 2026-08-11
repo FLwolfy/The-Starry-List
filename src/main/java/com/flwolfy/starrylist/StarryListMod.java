@@ -80,7 +80,7 @@ public final class StarryListMod implements ModInitializer {
   public static void onBlockPlaced(ServerPlayer player) {
     StarryListRuntime active = runtime;
     if (active == null) return;
-    active.scores().add("placing", player, 1);
+    active.scores().addAutomatic("placing", player, 1);
   }
 
   /**
@@ -91,9 +91,9 @@ public final class StarryListMod implements ModInitializer {
    */
   public static void onTravel(ServerPlayer player, int centimeters) {
     StarryListRuntime active = runtime;
-    if (active == null || centimeters <= 0) return;
+    if (active == null || centimeters <= 0 || active.scores().isBlacklisted(player)) return;
     int wholeBlocks = active.state().addTravel(player.getUUID(), centimeters);
-    if (wholeBlocks > 0) active.scores().add("travel_distance", player, wholeBlocks);
+    if (wholeBlocks > 0) active.scores().addAutomatic("travel_distance", player, wholeBlocks);
   }
 
   /**
@@ -108,23 +108,23 @@ public final class StarryListMod implements ModInitializer {
   private static void dispatchBlockBreak(ServerPlayer player) {
     StarryListRuntime active = runtime;
     if (active == null) return;
-    active.scores().add("mining", player, 1);
+    active.scores().addAutomatic("mining", player, 1);
   }
 
   private static void dispatchKill(ServerPlayer player, Entity victim) {
     StarryListRuntime active = runtime;
     if (active == null) return;
     if (victim instanceof ServerPlayer) {
-      active.scores().add("player_kills", player, 1);
+      active.scores().addAutomatic("player_kills", player, 1);
     } else {
-      active.scores().add("mob_kills", player, 1);
+      active.scores().addAutomatic("mob_kills", player, 1);
     }
   }
 
   private static void dispatchDeath(ServerPlayer player) {
     StarryListRuntime active = runtime;
     if (active == null) return;
-    active.scores().add("deaths", player, 1);
+    active.scores().addAutomatic("deaths", player, 1);
   }
 
   private static void onJoin(ServerPlayer player) {

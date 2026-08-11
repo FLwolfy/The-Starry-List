@@ -1,6 +1,6 @@
 # The-Starry-List Mod Documentation
 
-**The-Starry-List** is a leaderboard mod for Minecraft 26.1 Fabric. It stores six gameplay statistics in vanilla scoreboard objectives and gives every player independent control over sidebar board order, visibility, and rotation timing.
+**The-Starry-List** is a leaderboard mod for Minecraft 26.1 Fabric. It stores six gameplay statistics in vanilla scoreboard objectives and gives every player independent control over enabled boards, visibility, and rotation timing.
 
 简体中文文档见[这里](./README.cn.md)。
 
@@ -15,7 +15,8 @@ This project is a complete rewrite forked from [TheStarryMiningList](https://git
 - Six fixed built-in boards: mining, placing, mob kills, player kills, deaths, and travel distance.
 - Scores stored by vanilla scoreboard objectives without separate player score files.
 - Independent sidebar settings for every player.
-- Board selection, ordering, hiding, and optional rotation.
+- Board selection, hiding, and optional rotation in a fixed built-in order.
+- Player-name regular-expression blacklisting for scoring and visibility.
 - Server defaults with persistent per-player overrides.
 - World-scoped scores and display preferences that survive server restarts.
 - A localized, inventory-style `/starry` menu plus complete command-based administrative score and profile management.
@@ -139,7 +140,7 @@ Teleportation does not create these continuous-movement statistics, so `/tp`, en
 - The internal score owner is the player's UUID string, preventing a rename from creating a second score.
 - When a player joins, existing entries receive the player's current game name as their display component.
 - Vanilla `scoreboard.dat` stores scores, including negative values assigned by administrators.
-- The current world's SavedData stores display profiles and travel-centimeter remainders.
+- The current world's SavedData stores display profiles, travel-centimeter remainders, and blacklisted-score archives.
 - Different worlds have independent scores, personal display settings, and travel remainders.
 - A vanilla sidebar displays at most the 15 highest score entries.
 - The mod does not permanently occupy one global sidebar objective. It sends the selected objective separately to each player, allowing different players to view different boards at the same time.
@@ -168,9 +169,14 @@ The path is relative to the Minecraft game directory or dedicated-server root.
     "hiddenByDefault": false,
     "rotationEnabled": true,
     "rotationIntervalSeconds": 20,
-    "defaultBoards": [
-      "mining"
+    "enabledBoards": [
+      "mining",
+      "placing",
+      "mob_kills"
     ]
+  },
+  "blacklist": {
+    "playerNamePatterns": []
   }
 }
 ```
@@ -193,9 +199,9 @@ The server selects one global message language. It sends already-rendered litera
 | `hiddenByDefault` | `boolean` | `false` | Whether players without an override hide the sidebar by default |
 | `rotationEnabled` | `boolean` | `true` | Whether the default profile rotates through multiple boards |
 | `rotationIntervalSeconds` | `int` | `20` | Default rotation interval from `1` through `3600` seconds |
-| `defaultBoards` | `string[]` | `["mining"]` | Ordered default boards; only the six fixed IDs are accepted and duplicates are rejected |
+| `enabledBoards` | `string[]` | `["mining", "placing", "mob_kills"]` | Enabled default boards; only the six fixed IDs are accepted, with no duplicates; an empty list is allowed |
 
-Valid `defaultBoards` values are:
+Valid `enabledBoards` values are:
 
 ```text
 mining
@@ -206,7 +212,15 @@ deaths
 travel_distance
 ```
 
-Array order is display and rotation order. Disabling `rotationEnabled` pins the first board. The array cannot be empty while `hiddenByDefault` is `false`; it may be empty when the default display is hidden.
+Array order does not customize display order. Enabled entries always use the built-in order shown above; disabling `rotationEnabled` pins the first enabled board. An empty list is valid and means that no StarryList board is currently available for display. Legacy `defaultBoards` is migrated automatically when loaded, and a legacy empty list remains empty.
+
+### Blacklist (`blacklist`)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `playerNamePatterns` | `string[]` | `[]` | Case-insensitive Java regular expressions matched against the complete player name |
+
+A matching player stops accumulating all six automatic statistics and is removed from visible objectives. Existing scores are archived per world rather than deleted and return when the player no longer matches. Invalid or blank expressions fail configuration validation. For example, `bot_.*` matches names beginning with `bot_`.
 
 After editing the file, run:
 
@@ -225,12 +239,12 @@ Every player profile has one of three modes:
 | Mode | Behavior |
 |---|---|
 | `DEFAULT` | Follows the server `display` configuration live; this is the implicit mode with no saved profile |
-| `CUSTOM` | Uses the player's board order, rotation setting, and interval |
-| `HIDDEN` | Displays no StarryList sidebar |
+| `CUSTOM` | Uses the player's enabled boards, rotation setting, and interval |
+| `HIDDEN` | Displays no StarryList sidebar while retaining all pre-hide settings |
 
 Choosing **Use server defaults** in `/starry` removes the player's override instead of copying current defaults. If an administrator later changes server defaults, those players automatically follow the new settings.
 
-Changing a board, its order, rotation, or interval from `DEFAULT` or `HIDDEN` creates a `CUSTOM` profile based on current server defaults. Personal settings affect only that player. Joining or changing settings starts at the first selected board; rotation begins only after the configured interval elapses.
+Changing a board, rotation, or interval stores a personal profile based on the effective settings. Editing while hidden does not automatically show the sidebar; showing it again restores those settings. Personal settings affect only that player. Joining or changing settings starts at the first enabled board; rotation begins only after the configured interval elapses.
 
 ---
 
@@ -238,7 +252,7 @@ Changing a board, its order, rotation, or interval from `DEFAULT` or `HIDDEN` cr
 
 `/starry` requires no administrator permission and directly opens one fixed, non-paginated six-board inventory menu. It has no arguments or subcommands; console and command-block sources receive a player-only error.
 
-The six board cards show their localized name, enabled state, active position, and move-up/move-down controls. Enabling a board appends it to the selected order. Disabling removes it, while the last visible board cannot be disabled—use **Hide sidebar** instead. The bottom controls restore server defaults, hide or show the sidebar, toggle rotation, edit the `1`–`3600` second interval through an anvil input, and close the menu. Every click is saved immediately to the current world's SavedData and refreshes the sidebar.
+The menu has five rows. Gray glass fills the top and bottom rows; light-gray glass provides the remaining separators and borders. Six adjacent board cards appear in fixed order. Enabled cards glow and disabled cards do not; the former skull icons use an iron sword, diamond sword, and totem so the glint remains visible. All six boards may be disabled; this leaves no StarryList sidebar to display while retaining the board toggles, rotation setting, and interval in the profile. Bottom controls restore defaults, independently hide or show the sidebar, toggle rotation, edit the `1`–`3600` second interval through an anvil screen with a Cancel button, and close the menu. Successful changes send a crisp experience-orb sound directly to the player, save immediately, and refresh the sidebar.
 
 The menu is implemented with the SGui library bundled in the mod JAR. It uses vanilla container packets, so players do not install SGui or The-Starry-List locally. Menu text follows the player's reported `en_us` or `zh_cn` language and falls back to the configured server language and then English.
 
@@ -274,6 +288,7 @@ Examples:
 ```
 
 Score operations use signed 32-bit integers. If an addition would overflow that range, it fails instead of storing a wrapped value.
+Administrator score commands read and modify a blacklisted player's hidden archive. Those values return to the objective only after the player no longer matches the blacklist.
 
 ---
 
@@ -281,9 +296,10 @@ Score operations use signed 32-bit integers. If an addition would overflow that 
 
 With Cloth Config and ModMenu installed on the client, the configuration screen contains:
 
-- **General**: server message language, administrator permission level, and a local-scope notice.
-- **Display**: default visibility, rotation, interval, plus six localized enable buttons and up/down ordering controls on one page. Disabled boards follow enabled boards, and reset restores Mining as the only default board.
-- **All**: a live summary of the current, possibly unsaved settings.
+- **All**: the first category, containing expanded, synchronized copies of every real setting below.
+- **General**: server message language and administrator permission level.
+- **Display**: default visibility, rotation, interval, plus one collapsible six-board subcategory. Every board has its own toggle and reset button; the first three are enabled by default.
+- **Blacklist**: an editable player-name regex list with inline highlighting; newly added input fields have a border and example placeholder.
 
 Saving uses the same complete validation as the JSON configuration. Success or failure appears as a toast, and detailed exceptions are written to the log.
 
@@ -299,7 +315,7 @@ No. The server handles leaderboards, sidebar packets, scores, and commands, so a
 
 ### Can I add a seventh board?
 
-No. This version manages only six fixed boards, although servers and players can choose any subset, order, and rotation behavior for those six.
+No. This version manages only six fixed boards. Servers and players can choose a subset and rotation behavior, but cannot change the built-in order.
 
 ### Why does teleportation not increase travel distance?
 

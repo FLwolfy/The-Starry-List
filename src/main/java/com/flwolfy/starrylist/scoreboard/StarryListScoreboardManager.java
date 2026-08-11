@@ -9,6 +9,7 @@ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 public final class StarryListScoreboardManager {
 
   private final MinecraftServer server;
+  private final java.util.Map<String, Objective> trackedObjectives = new java.util.HashMap<>();
 
   /**
    * Creates an objective manager for the active server.
@@ -41,7 +42,10 @@ public final class StarryListScoreboardManager {
         objective.setDisplayName(board.displayName());
         objective.setRenderType(ObjectiveCriteria.RenderType.INTEGER);
       }
-      scoreboard.startTrackingObjective(objective);
+      if (trackedObjectives.get(board.objectiveName()) != objective) {
+        scoreboard.startTrackingObjective(objective);
+        trackedObjectives.put(board.objectiveName(), objective);
+      }
     }
   }
 }

@@ -1,8 +1,9 @@
 package com.flwolfy.starrylist;
 
 import com.flwolfy.starrylist.data.config.StarryListConfigManager;
+import com.flwolfy.starrylist.data.config.StarryListBlacklist;
 import com.flwolfy.starrylist.data.state.StarryListState;
-import com.flwolfy.starrylist.display.StarryListDisplayManager;
+import com.flwolfy.starrylist.display.StarryListSidebarManager;
 import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
 import com.flwolfy.starrylist.scoreboard.StarryListScoreService;
 import com.flwolfy.starrylist.scoreboard.StarryListScoreboardManager;
@@ -12,9 +13,10 @@ import net.minecraft.server.MinecraftServer;
 public final class StarryListRuntime {
 
   private final StarryListState state;
+  private final StarryListBlacklist blacklist;
   private final StarryListScoreboardManager scoreboardManager;
   private final StarryListScoreService scores;
-  private final StarryListDisplayManager display;
+  private final StarryListSidebarManager display;
   private volatile StarryListBoardRegistry registry;
 
   /**
@@ -24,16 +26,19 @@ public final class StarryListRuntime {
    */
   StarryListRuntime(MinecraftServer server) {
     this.state = server.getDataStorage().computeIfAbsent(StarryListState.TYPE);
+    this.blacklist = new StarryListBlacklist();
+    this.blacklist.apply(StarryListConfigManager.getInstance().data());
     this.registry = new StarryListBoardRegistry();
     this.scoreboardManager = new StarryListScoreboardManager(server);
-    this.scores = new StarryListScoreService(server, this::registry);
-    this.display = new StarryListDisplayManager(
+    this.scores = new StarryListScoreService(server, this::registry, state, blacklist);
+    this.display = new StarryListSidebarManager(
         server,
         state,
         () -> StarryListConfigManager.getInstance().data(),
         this::registry
     );
     scoreboardManager.reconcile(registry);
+    scores.reconcileBlacklist();
   }
 
   /**
@@ -41,9 +46,11 @@ public final class StarryListRuntime {
    *
    */
   void applyConfig() {
+    blacklist.apply(StarryListConfigManager.getInstance().data());
     StarryListBoardRegistry next = new StarryListBoardRegistry();
     scoreboardManager.reconcile(next);
     registry = next;
+    scores.reconcileBlacklist();
     display.updateAll(true);
   }
 
@@ -84,7 +91,7 @@ public final class StarryListRuntime {
    *
    * @return per-player sidebar display manager
    */
-  public StarryListDisplayManager display() {
+  public StarryListSidebarManager display() {
     return display;
   }
 }

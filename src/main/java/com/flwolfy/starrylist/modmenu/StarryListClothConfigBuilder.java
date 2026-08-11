@@ -2,6 +2,7 @@ package com.flwolfy.starrylist.modmenu;
 
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.lang.StarryListLang;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Mutable editor snapshot used only while a Cloth Config screen is open. */
@@ -12,7 +13,8 @@ final class StarryListClothConfigBuilder {
   boolean hiddenByDefault;
   boolean rotationEnabled;
   int rotationIntervalSeconds;
-  List<String> defaultBoards;
+  List<String> enabledBoards;
+  List<String> playerNamePatterns;
 
   StarryListClothConfigBuilder(StarryListConfigData data) {
     language = data.general().language();
@@ -20,7 +22,8 @@ final class StarryListClothConfigBuilder {
     hiddenByDefault = data.display().hiddenByDefault();
     rotationEnabled = data.display().rotationEnabled();
     rotationIntervalSeconds = data.display().rotationIntervalSeconds();
-    defaultBoards = List.copyOf(data.display().defaultBoards());
+    enabledBoards = List.copyOf(data.display().enabledBoards());
+    playerNamePatterns = List.copyOf(data.blacklist().playerNamePatterns());
   }
 
   StarryListConfigData build() {
@@ -30,8 +33,19 @@ final class StarryListClothConfigBuilder {
             hiddenByDefault,
             rotationEnabled,
             rotationIntervalSeconds,
-            List.copyOf(defaultBoards)
-        )
+            List.copyOf(enabledBoards)
+        ),
+        new StarryListConfigData.Blacklist(List.copyOf(playerNamePatterns))
     );
+  }
+
+  void setBoardEnabled(String boardId, boolean enabled) {
+    List<String> next = new ArrayList<>(enabledBoards);
+    if (enabled) {
+      if (!next.contains(boardId)) next.add(boardId);
+    } else {
+      next.remove(boardId);
+    }
+    enabledBoards = StarryListConfigData.normalizeIds(next);
   }
 }

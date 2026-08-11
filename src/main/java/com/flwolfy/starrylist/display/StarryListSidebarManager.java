@@ -3,6 +3,7 @@ package com.flwolfy.starrylist.display;
 import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.flwolfy.starrylist.data.state.StarryListDisplayProfile;
 import com.flwolfy.starrylist.data.state.StarryListState;
+import com.flwolfy.starrylist.scoreboard.StarryListBoardIds;
 import com.flwolfy.starrylist.scoreboard.StarryListBoardRegistry;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,7 +18,7 @@ import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 
 /** Computes effective per-player display profiles and sends vanilla sidebar packets on change. */
-public final class StarryListDisplayManager {
+public final class StarryListSidebarManager {
 
   private final MinecraftServer server;
   private final StarryListState state;
@@ -36,7 +37,7 @@ public final class StarryListDisplayManager {
    * @param config active configuration supplier
    * @param registry fixed leaderboard registry supplier
    */
-  public StarryListDisplayManager(
+  public StarryListSidebarManager(
       MinecraftServer server,
       StarryListState state,
       java.util.function.Supplier<StarryListConfigData> config,
@@ -77,6 +78,11 @@ public final class StarryListDisplayManager {
     }
     String nextName = objective == null ? "" : objective.getName();
     String previous = displayedObjectives.get(player.getUUID());
+    if (objective == null) {
+      releaseSidebar(player, previous);
+      displayedObjectives.put(player.getUUID(), "");
+      return;
+    }
     if (force || !nextName.equals(previous)) {
       player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, objective));
       displayedObjectives.put(player.getUUID(), nextName);
@@ -116,7 +122,7 @@ public final class StarryListDisplayManager {
       return new EffectiveDisplay(true, List.of(), false, defaults.rotationIntervalSeconds());
     }
     List<String> requested = profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
-        ? defaults.defaultBoards() : profile.boards();
+        ? defaults.enabledBoards() : profile.boards();
     List<String> available = StarryListConfigData.normalizeIds(requested).stream()
         .filter(id -> registry.get().get(id).isPresent())
         .distinct()
@@ -134,6 +140,19 @@ public final class StarryListDisplayManager {
   }
 
   /**
+   * Returns whether visibility is disabled by the hide setting rather than by an empty board list.
+   *
+   * @param playerId player UUID
+   * @return whether the player explicitly hides the sidebar or inherits hidden-by-default
+   */
+  public boolean hiddenBySetting(UUID playerId) {
+    StarryListDisplayProfile profile = state.profile(playerId);
+    return profile.mode() == StarryListDisplayProfile.Mode.HIDDEN
+        || (profile.mode() == StarryListDisplayProfile.Mode.DEFAULT
+            && config.get().display().hiddenByDefault());
+  }
+
+  /**
    * Returns a mutable-command starting profile, copying server defaults when necessary.
    *
    * @param playerId player UUID
@@ -142,9 +161,17 @@ public final class StarryListDisplayManager {
   public StarryListDisplayProfile editableProfile(UUID playerId) {
     StarryListDisplayProfile current = state.profile(playerId);
     if (current.mode() == StarryListDisplayProfile.Mode.CUSTOM) return current;
+    if (current.mode() == StarryListDisplayProfile.Mode.HIDDEN) {
+      return new StarryListDisplayProfile(
+          StarryListDisplayProfile.Mode.CUSTOM,
+          current.boards(),
+          current.rotationEnabled(),
+          current.rotationIntervalSeconds()
+      );
+    }
     EffectiveDisplay effective = effective(playerId);
     List<String> boards = effective.boards().isEmpty()
-        ? StarryListConfigData.normalizeIds(config.get().display().defaultBoards())
+        ? StarryListConfigData.normalizeIds(config.get().display().enabledBoards())
         : effective.boards();
     return new StarryListDisplayProfile(
         StarryListDisplayProfile.Mode.CUSTOM,
@@ -164,6 +191,22 @@ public final class StarryListDisplayManager {
         player.connection.send(packet);
       }
     }
+  }
+
+  /**
+   * Releases a sidebar only when this manager previously put a StarryList objective there.
+   *
+   * <p>Sending an unconditional null objective would clear a sidebar owned by another mod every
+   * time a hidden profile was refreshed. When StarryList relinquishes a sidebar, restore the
+   * server's normal SIDEBAR objective if it is not one of ours. Per-player packet-only sidebars
+   * from other mods cannot be introspected, so avoiding packets after ownership is released is the
+   * safest cooperative behavior.</p>
+   */
+  private void releaseSidebar(ServerPlayer player, String previous) {
+    if (!StarryListBoardIds.ownsObjective(previous)) return;
+    Objective fallback = server.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
+    if (fallback != null && StarryListBoardIds.ownsObjective(fallback.getName())) fallback = null;
+    player.connection.send(new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, fallback));
   }
 
   /**

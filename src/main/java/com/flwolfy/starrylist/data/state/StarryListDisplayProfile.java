@@ -1,15 +1,16 @@
 package com.flwolfy.starrylist.data.state;
 
+import com.flwolfy.starrylist.data.config.StarryListConfigData;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Persistent per-player sidebar mode, board order, and rotation settings.
+ * Persistent per-player sidebar mode, enabled boards, and rotation settings.
  *
  * @param mode relationship to server defaults
- * @param boards ordered personal board identifiers
+ * @param boards enabled personal board identifiers in fixed built-in order
  * @param rotationEnabled whether multiple boards rotate
  * @param rotationIntervalSeconds personal rotation interval in seconds
  */
@@ -24,7 +25,7 @@ public record StarryListDisplayProfile(
   public enum Mode {
     /** Follow the active server display configuration. */
     DEFAULT,
-    /** Use the player's stored board order and rotation settings. */
+    /** Use the player's stored enabled boards and rotation settings. */
     CUSTOM,
     /** Hide the StarryList sidebar. */
     HIDDEN
@@ -46,7 +47,7 @@ public record StarryListDisplayProfile(
 
   /** Ensures a profile cannot be mutated through its source board list. */
   public StarryListDisplayProfile {
-    boards = List.copyOf(boards);
+    boards = StarryListConfigData.normalizeIds(boards);
   }
 
   /**

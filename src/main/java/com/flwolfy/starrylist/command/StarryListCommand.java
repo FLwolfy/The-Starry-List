@@ -4,7 +4,7 @@ import static net.minecraft.commands.Commands.literal;
 
 import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
-import com.flwolfy.starrylist.gui.StarryListPlayerGui;
+import com.flwolfy.starrylist.display.StarryListPlayerGui;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
