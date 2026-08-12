@@ -45,15 +45,19 @@ final class StarryListScriptCompiler {
       }
 
       List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
+      List<StarryListScriptLifecycle> lifecycles = new ArrayList<>();
       Map<String, Map<String, String>> translations = new HashMap<>();
       for (StarryListScriptBoard board : boards) {
         addTranslations(board, translations);
         StarryListScriptRegistrar registrar = new StarryListScriptRegistrar(board);
         board.subscribe(registrar);
         subscriptions.addAll(registrar.subscriptions());
+        lifecycles.addAll(registrar.lifecycles());
       }
 
-      return new StarryListScriptSnapshot(loader, boards, subscriptions, translations);
+      return new StarryListScriptSnapshot(
+          loader, boards, subscriptions, lifecycles, translations
+      );
     } catch (Throwable throwable) {
       try {
         loader.clearCache();
@@ -83,6 +87,7 @@ final class StarryListScriptCompiler {
               loader,
               List.of(board),
               registrar.subscriptions(),
+              registrar.lifecycles(),
               translations
           );
           result.add(new Inspection(source.getFileName().toString(), snapshot, null));

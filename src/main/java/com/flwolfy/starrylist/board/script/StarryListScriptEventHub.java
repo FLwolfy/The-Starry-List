@@ -62,6 +62,10 @@ final class StarryListScriptEventHub {
     slots.values().forEach(slot -> slot.setBoardActive(activeBoardIds.contains(slot.boardId())));
   }
 
+  synchronized void suspend() {
+    slots.values().forEach(slot -> slot.setBoardActive(false));
+  }
+
   /**
    * Returns immutable status information for every permanent subscription slot.
    *

@@ -16,7 +16,7 @@ This project is a complete rewrite forked from [TheStarryMiningList](https://git
 - Scores stored by vanilla scoreboard objectives without separate player score files.
 - Independent sidebar settings for every player.
 - Board selection, hiding, and optional rotation in each module's stable declared order.
-- Player-name regular-expression blacklisting for scoring and visibility.
+- Player-name regular-expression blacklisting for automatic scoring and visibility.
 - Server defaults with persistent per-player overrides.
 - World-scoped scores and display preferences that survive server restarts.
 - A localized, inventory-style `/starry` menu plus complete command-based administrative score and profile management.
@@ -232,7 +232,7 @@ Loading and default-profile selection are independent. A loaded board owns its o
 |---|---|---|---|
 | `playerNamePatterns` | `string[]` | `[]` | Case-insensitive Java regular expressions matched against the complete player name |
 
-A matching player stops accumulating all registered automatic statistics and is removed from visible objectives. Existing scores are archived per world rather than deleted and return when the player no longer matches. Invalid or blank expressions fail configuration validation. For example, `bot_.*` matches names beginning with `bot_`.
+A matching player stops accumulating registered automatic statistics and is removed from visible objectives. Existing scores are archived per world rather than deleted and return when the player no longer matches. `addAutomatic`, `setAutomatic`, and `accumulate` enforce this policy internally, so Java and Groovy boards need no blacklist checks. Generic `state` storage remains caller-managed and should normally mirror the result of an automatic score operation. Invalid or blank expressions fail configuration validation. For example, `bot_.*` matches names beginning with `bot_`.
 
 After editing the file, run:
 
@@ -355,7 +355,9 @@ Direct Fabric `Event.register()` calls are rejected during Groovy compilation. A
 
 The first `listen` argument is a stable subscription ID local to that board, not a Fabric event name. For example, `block_break` becomes `ore_mining/block_break` for a board whose ID is `ore_mining`. Keys must be unique within one board and remain unchanged across reloads while they represent the same Event and inactive result.
 
-The registrar also exposes `addAutomatic`, `setAutomatic`, `isBlacklisted`, `display`, `isEnabled`, per-player `state`, `accumulate`, `runtime`, and `server`. Use `addAutomatic` for counters and `setAutomatic` to synchronize an absolute value such as a balance or level. Both respect the automatic-scoring blacklist; administrator score commands remain authoritative and can update archived scores. Automatic additions retain saturated-integer behavior. Board-private state and blacklist archives remain keyed by board ID.
+Scripts that own resources outside `registrar.listen()` can register one lifecycle pair with `registrar.onActiveStateChanged(onActivated, onDeactivated)`. StarryList runs activation when the board enters the active catalog and cleanup when it is disabled, replaced, removed, or the server stops. Validation and editor preview never execute lifecycle callbacks. Use this only for caches, sampling baselines, dynamic listeners, or similar resources; managed `listen()` subscriptions require no manual cleanup.
+
+The registrar also exposes `addAutomatic`, `setAutomatic`, `display`, `isEnabled`, per-player `state`, `accumulate`, `runtime`, and `server`. Use `addAutomatic` for counters and `setAutomatic` to synchronize an absolute value such as a balance or level. `addAutomatic`, `setAutomatic`, and `accumulate` automatically reject blacklisted players; scripts do not receive or need a blacklist predicate. Administrator score commands remain authoritative and can update archived scores. Automatic additions retain saturated-integer behavior. Board-private state and blacklist archives remain keyed by board ID.
 
 Running `./gradlew build` also produces `the-starry-list-<version>-script-sdk.zip`. The SDK is a minimal Gradle/Groovy editing project containing `config/example.groovy`, the StarryList development JAR and sources, and the Gradle Wrapper. It contains no server, world, Minecraft JAR, or run configuration. Open it as a Gradle project, allow the first online dependency sync, and run `./gradlew compileGroovy` to check script syntax and imports.
 
@@ -371,7 +373,7 @@ Groovy scripts are fully trusted server code. They may call public Minecraft, Fa
 
 Create a public concrete subclass of `StarryListBoard` anywhere below `com.flwolfy.starrylist.board`. It must have an implicit or explicit public no-argument constructor. The class supplies its stable `id()`, language-independent `objectiveName()`, unique `order()`, SGUI `icon()`, and statistic registration in `register(...)`; the base class resolves its localized presentation.
 
-The bound `StarryListBoardRegistrar` provides automatic scoring with blacklist and overflow handling, delayed runtime access, and a persistent per-player board-state namespace. Board code therefore does not need to modify the config manager, score service, scoreboard manager, sidebar, commands, Cloth Config, or SGUI. The registry recursively discovers classes once during Mod initialization, validates metadata and duplicates, and aborts startup with the offending class or value if loading fails.
+The bound `StarryListBoardRegistrar` provides automatic scoring with internal blacklist and overflow handling, delayed runtime access, and a persistent per-player board-state namespace. Board code therefore does not need to inspect blacklist configuration or modify the config manager, score service, scoreboard manager, sidebar, commands, Cloth Config, or SGUI. The registry recursively discovers classes once during Mod initialization, validates metadata and duplicates, and aborts startup with the offending class or value if loading fails.
 
 Register Fabric events from `register(...)` through `registrar.listen("stable_key", EVENT, callback)` rather than calling `EVENT.register(...)` directly. Fabric events have no callback-removal API: `listen` installs one permanent proxy and hot-enables or suppresses it with the board's `boards.disabledBoards` state, preventing duplicate or still-running callbacks across configuration reloads. Value-returning events use `registrar.listen("stable_key", EVENT, inactiveResult, callback)`. A board that owns caches or secondary vanilla listeners can also use `onActiveStateChanged(...)` to rebuild them when enabled and release them when disabled. The built-in placing board listens for successful vanilla `BLOCK_PLACE` game events, while travel samples deltas from the player's vanilla movement statistics at the end of each server tick. The project therefore has no Mixin classes or shared Mixin JSON to maintain.
 

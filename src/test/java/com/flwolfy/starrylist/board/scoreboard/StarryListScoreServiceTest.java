@@ -65,7 +65,7 @@ public final class StarryListScoreServiceTest {
   }
 
   @Test
-  void setAutomaticLeavesBlacklistedVisibleAndArchivedScoresUnchanged() {
+  void setAutomaticLeavesBlacklistedScoreUnchanged() {
     UUID playerId = UUID.randomUUID();
     MinecraftServer server = mock(MinecraftServer.class);
     StarryListBoardRegistry registry = mock(StarryListBoardRegistry.class);
@@ -83,6 +83,46 @@ public final class StarryListScoreServiceTest {
     assertEquals(37, service.setAutomatic("balance", player, 99));
     verify(state, never()).archiveScore(any(), any(), any(), any(Integer.class));
     verify(state, never()).removeArchivedScore(any(), any());
+    verifyNoInteractions(server, registry);
+  }
+
+  @Test
+  void addAutomaticLeavesBlacklistedScoreUnchanged() {
+    UUID playerId = UUID.randomUUID();
+    MinecraftServer server = mock(MinecraftServer.class);
+    StarryListBoardRegistry registry = mock(StarryListBoardRegistry.class);
+    StarryListState state = mock(StarryListState.class);
+    StarryListBlacklist blacklist = mock(StarryListBlacklist.class);
+    ServerPlayer player = player(playerId, "BlockedPlayer");
+
+    when(blacklist.matches("BlockedPlayer")).thenReturn(true);
+    when(state.archivedScore(playerId, "counter")).thenReturn(37);
+
+    StarryListScoreService service = new StarryListScoreService(
+        server, () -> registry, state, blacklist
+    );
+
+    assertEquals(37, service.addAutomatic("counter", player, 5));
+    verify(state, never()).archiveScore(any(), any(), any(), any(Integer.class));
+    verifyNoInteractions(server, registry);
+  }
+
+  @Test
+  void accumulateAutomaticDoesNotMutateBlacklistedState() {
+    UUID playerId = UUID.randomUUID();
+    MinecraftServer server = mock(MinecraftServer.class);
+    StarryListBoardRegistry registry = mock(StarryListBoardRegistry.class);
+    StarryListState state = mock(StarryListState.class);
+    StarryListBlacklist blacklist = mock(StarryListBlacklist.class);
+    ServerPlayer player = player(playerId, "BlockedPlayer");
+
+    when(blacklist.matches("BlockedPlayer")).thenReturn(true);
+    StarryListScoreService service = new StarryListScoreService(
+        server, () -> registry, state, blacklist
+    );
+
+    assertEquals(0, service.accumulateAutomatic("travel", player, "remainder", 75, 100));
+    verify(state, never()).boardState(any(), any());
     verifyNoInteractions(server, registry);
   }
 

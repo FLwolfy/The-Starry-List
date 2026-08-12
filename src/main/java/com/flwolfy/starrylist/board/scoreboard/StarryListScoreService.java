@@ -147,13 +147,27 @@ public final class StarryListScoreService {
   }
 
   /**
-   * Checks whether automatic statistics are disabled for a player.
+   * Accumulates automatic sub-units unless the player is blacklisted.
    *
-   * @param player the player to check
-   * @return whether the player is blacklisted
+   * @param boardId the board identifier
+   * @param player the player whose state changes
+   * @param key the remainder state key
+   * @param amount the sub-units to add
+   * @param unitsPerWhole the sub-units in one completed unit
+   * @return completed whole units, or zero when the player is blacklisted
    */
-  public boolean isBlacklisted(ServerPlayer player) {
-    return blacklist.matches(player.getGameProfile().name());
+  public int accumulateAutomatic(
+      String boardId,
+      ServerPlayer player,
+      String key,
+      int amount,
+      int unitsPerWhole
+  ) {
+    if (blacklist.matches(player.getGameProfile().name())) {
+      return 0;
+    }
+
+    return state.boardState(boardId, player.getUUID()).accumulate(key, amount, unitsPerWhole);
   }
 
   /**

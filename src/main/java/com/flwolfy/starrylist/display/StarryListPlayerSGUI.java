@@ -18,6 +18,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /** Provides the paginated board settings menu opened by {@code /starry}. */
@@ -73,13 +75,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   }
 
   private void render() {
-    GuiElementBuilder filler = new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
+    GuiElementBuilder filler = element(Items.GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = 0; slot < getVirtualSize(); slot++) {
       setSlot(slot, filler.build());
     }
 
-    GuiElementBuilder boardBackground = new GuiElementBuilder(Items.RED_STAINED_GLASS_PANE)
+    GuiElementBuilder boardBackground = element(Items.RED_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = BOARD_START_SLOT; slot < BOARD_START_SLOT + BOARDS_PER_PAGE; slot++) {
       setSlot(slot, boardBackground.build());
@@ -92,7 +94,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
         / BOARDS_PER_PAGE);
     page = Math.floorMod(page, pageCount);
 
-    setSlot(4, new GuiElementBuilder(Items.NETHER_STAR)
+    setSlot(4, element(Items.NETHER_STAR)
         .setName(text("starrylist.gui.status").copy().withStyle(ChatFormatting.GOLD))
         .addLoreLine(text("starrylist.gui.status.mode", modeName(saved.mode())))
         .addLoreLine(text(
@@ -113,19 +115,19 @@ public final class StarryListPlayerSGUI extends SimpleGui {
     }
 
     if (pageCount > 1) {
-      setSlot(0, new GuiElementBuilder(Items.PLAYER_HEAD)
+      setSlot(0, element(Items.PLAYER_HEAD)
           .setProfile("MHF_ArrowLeft")
           .setName(text("starrylist.gui.page.previous").copy().withStyle(ChatFormatting.AQUA))
           .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
           .setCallback(() -> changePage(-1, pageCount)).build());
-      setSlot(8, new GuiElementBuilder(Items.PLAYER_HEAD)
+      setSlot(8, element(Items.PLAYER_HEAD)
           .setProfile("MHF_ArrowRight")
           .setName(text("starrylist.gui.page.next").copy().withStyle(ChatFormatting.AQUA))
           .addLoreLine(text("starrylist.gui.page.value", page + 1, pageCount))
           .setCallback(() -> changePage(1, pageCount)).build());
     }
 
-    setSlot(36, new GuiElementBuilder(Items.CLOCK)
+    setSlot(36, element(Items.CLOCK)
         .setName(text("starrylist.gui.use_default").copy().withStyle(ChatFormatting.AQUA))
         .addLoreLine(text("starrylist.gui.use_default.description"))
         .setCallback(() -> {
@@ -134,7 +136,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
         }).build());
 
     boolean hidden = runtime.display().hiddenBySetting(player.getUUID());
-    setSlot(38, new GuiElementBuilder(hidden ? Items.ENDER_PEARL : Items.ENDER_EYE)
+    setSlot(38, element(hidden ? Items.ENDER_PEARL : Items.ENDER_EYE)
         .setName(text(hidden ? "starrylist.gui.show" : "starrylist.gui.hide").copy()
             .withStyle(hidden ? ChatFormatting.GREEN : ChatFormatting.GRAY))
         .setCallback(() -> {
@@ -151,7 +153,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
           applyAndRender();
         }).build());
 
-    setSlot(40, new GuiElementBuilder(
+    setSlot(40, element(
         editable.rotationEnabled() ? Items.MUSIC_DISC_CAT : Items.MUSIC_DISC_CHIRP
     )
         .setName(text("starrylist.gui.rotation").copy().withStyle(ChatFormatting.YELLOW))
@@ -169,13 +171,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
           applyAndRender();
         }).build());
 
-    setSlot(42, new GuiElementBuilder(Items.REPEATER)
+    setSlot(42, element(Items.REPEATER)
         .setName(text("starrylist.gui.interval").copy().withStyle(ChatFormatting.YELLOW))
         .addLoreLine(text("starrylist.gui.interval.value", editable.rotationIntervalSeconds()))
         .addLoreLine(text("starrylist.gui.interval.description"))
         .setCallback(() -> openIntervalInput(editable)).build());
 
-    setSlot(44, new GuiElementBuilder(Items.BARRIER)
+    setSlot(44, element(Items.BARRIER)
         .setName(text("starrylist.gui.close").copy().withStyle(ChatFormatting.RED))
         .setCallback(() -> close()).build());
   }
@@ -184,7 +186,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
       StarryListBoard board,
       boolean selected
   ) {
-    GuiElementBuilder builder = new GuiElementBuilder(board.iconForGui())
+    GuiElementBuilder builder = element(board.iconForGui())
         .setName(board.displayName().copy().withStyle(
             selected ? ChatFormatting.GREEN : ChatFormatting.GRAY
         ));
@@ -237,14 +239,14 @@ public final class StarryListPlayerSGUI extends SimpleGui {
       String value,
       StarryListDisplayProfile editable
   ) {
-    input.setSlot(1, new GuiElementBuilder(Items.BARRIER)
+    input.setSlot(1, element(Items.BARRIER)
         .setName(text("starrylist.gui.interval.cancel").copy().withStyle(ChatFormatting.RED))
         .setCallback(() -> {
           input.close();
           StarryListPlayerSGUI.open(player, runtime);
         }).build());
     Integer seconds = parseInterval(value);
-    GuiElementBuilder result = new GuiElementBuilder(seconds == null ? Items.BARRIER : Items.LIME_DYE)
+    GuiElementBuilder result = element(seconds == null ? Items.BARRIER : Items.LIME_DYE)
         .setName(text(seconds == null
             ? "starrylist.gui.interval.invalid" : "starrylist.gui.interval.confirm"));
     if (seconds != null) {
@@ -331,5 +333,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
 
   private Component text(String key, Object... arguments) {
     return StarryListLangManager.getInstance().text(key, arguments);
+  }
+
+  private static GuiElementBuilder element(Item item) {
+    return new GuiElementBuilder(item).hideDefaultTooltip();
+  }
+
+  private static GuiElementBuilder element(ItemStack stack) {
+    return new GuiElementBuilder(stack).hideDefaultTooltip();
   }
 }

@@ -48,8 +48,6 @@ public final class StarryListRuntime {
     scoreboardManager.reconcile(registry);
     scoreboardManager.restoreArchived(registry.all(), state);
     activeBoards = index(registry.all());
-    com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
-        .applyActiveBoards(registry.ids());
     scores.reconcileBlacklist();
   }
 

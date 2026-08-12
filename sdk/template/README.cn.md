@@ -22,3 +22,29 @@
 
 SDK 内置的本地 Maven 仓库会自动关联 StarryList 主程序与源码。完成 Gradle 同步后，IDE
 无需手动附加 sources JAR 即可显示方法注释并跳转到源码。
+
+## 内置示例
+
+`config/example.groovy` 实现了一个较完整的趣味“星光远征榜”，用到了全部公开 registrar
+API，包括两种 `listen()`、
+`onActiveStateChanged()`、`addAutomatic()`、`setAutomatic()`、
+`display()`、`isEnabled()`、两种玩家状态访问方式、`accumulate()`、`runtime()` 与
+`server()`。代码内的注释说明了各 API 的使用目的，以及哪些数据应当持久化。
+
+黑名单过滤完全在内部完成。`addAutomatic()`、`setAutomatic()` 和 `accumulate()` 会自动
+拒绝黑名单玩家，registrar 不暴露黑名单判断接口。通用 `state()` 需要镜像分数时，应像
+示例一样写入自动计分操作返回的结果。
+
+## 可选资源生命周期
+
+普通 `registrar.listen()` 订阅由 StarryList 自动管理。脚本若自行创建缓存、采样 baseline
+或动态监听器，可以注册一组生命周期 Closure：
+
+```groovy
+registrar.onActiveStateChanged(
+    { -> rebuildResources() },
+    { -> releaseResources() }
+)
+```
+
+榜单被停用、替换、删除或服务器停止时会执行清理。validate 和编辑器预览不会执行这些回调。

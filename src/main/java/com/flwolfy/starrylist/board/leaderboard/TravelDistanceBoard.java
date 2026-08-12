@@ -100,7 +100,6 @@ public final class TravelDistanceBoard extends StarryListBoard {
       initialize(player);
       return;
     }
-
     for (Identifier statistic : MOVEMENT_STATS) {
       int current = value(player, statistic);
       int earlier = previous.put(statistic, current);

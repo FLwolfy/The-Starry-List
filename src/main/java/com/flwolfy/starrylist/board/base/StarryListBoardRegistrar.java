@@ -120,17 +120,6 @@ public final class StarryListBoardRegistrar {
   }
 
   /**
-   * Checks whether a player is excluded from automatic board processing.
-   *
-   * @param player the player to check
-   * @return whether the player is blacklisted
-   */
-  public boolean isBlacklisted(ServerPlayer player) {
-    StarryListRuntime runtime = StarryListMod.getRuntime();
-    return runtime != null && runtime.scores().isBlacklisted(player);
-  }
-
-  /**
    * Returns this board's persistent state namespace for a player.
    *
    * @param player the owning player
@@ -172,6 +161,7 @@ public final class StarryListBoardRegistrar {
 
   /**
    * Accumulates positive sub-units in persistent board state and returns completed whole units.
+   * Blacklisted players do not mutate the stored remainder.
    *
    * @param player the player whose state changes
    * @param key the board-state key that stores the remainder
@@ -182,11 +172,13 @@ public final class StarryListBoardRegistrar {
   public int accumulate(ServerPlayer player, String key, int amount, int unitsPerWhole) {
     StarryListRuntime runtime = StarryListMod.getRuntime();
     if (runtime == null || runtime.registry().get(board.id()).isEmpty()
-        || amount <= 0 || unitsPerWhole <= 0 || isBlacklisted(player)) {
+        || amount <= 0 || unitsPerWhole <= 0) {
       return 0;
     }
 
-    return state(player).accumulate(key, amount, unitsPerWhole);
+    return runtime.scores().accumulateAutomatic(
+        board.id(), player, key, amount, unitsPerWhole
+    );
   }
 
   synchronized void setActive(boolean replacement) {

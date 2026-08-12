@@ -45,10 +45,12 @@ public final class StarryListMod implements ModInitializer {
     ServerLifecycleEvents.SERVER_STARTED.register(server -> {
       StarryListScriptManager.getInstance().validateActiveIcons();
       runtime = new StarryListRuntime(server);
+      StarryListScriptManager.getInstance().applyActiveBoards(runtime.registry().ids());
       config.setApplyListener(ignored -> runtime.applyConfig());
       LOGGER.info("The-Starry-List is ready");
     });
     ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+      StarryListScriptManager.getInstance().applyActiveBoards(java.util.List.of());
       runtime = null;
       config.setApplyListener(null);
     });

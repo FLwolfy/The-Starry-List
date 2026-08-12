@@ -20,6 +20,7 @@ public final class StarryListScriptRegistrar {
 
   private final StarryListScriptBoard board;
   private final List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
+  private StarryListScriptLifecycle lifecycle;
 
   StarryListScriptRegistrar(StarryListScriptBoard board) {
     this.board = board;
@@ -58,7 +59,33 @@ public final class StarryListScriptRegistrar {
   }
 
   /**
-   * Adds an automatically collected statistic for this board.
+   * Registers initialization and cleanup actions for this script board's loading-state changes.
+   * The callbacks are also managed across successful script replacement and server shutdown.
+   *
+   * @param onActivated callback run when the board becomes active
+   * @param onDeactivated callback run when the board becomes inactive or is replaced
+   * @throws IllegalStateException if lifecycle callbacks were already registered for this board
+   */
+  public synchronized void onActiveStateChanged(
+      Closure<?> onActivated,
+      Closure<?> onDeactivated
+  ) {
+    if (lifecycle != null) {
+      throw new IllegalStateException("Script lifecycle already registered for " + board.id());
+    }
+    if (onActivated == null || onDeactivated == null) {
+      throw new IllegalArgumentException("Script lifecycle callbacks cannot be null");
+    }
+
+    lifecycle = new StarryListScriptLifecycle(
+        board.id(),
+        () -> onActivated.call(),
+        () -> onDeactivated.call()
+    );
+  }
+
+  /**
+   * Adds an automatically collected statistic for this board while respecting the blacklist.
    *
    * @param player the player whose score changes
    * @param delta the amount to add
@@ -81,17 +108,6 @@ public final class StarryListScriptRegistrar {
     StarryListRuntime runtime = StarryListMod.getRuntime();
     return runtime == null || runtime.registry().get(board.id()).isEmpty()
         ? 0 : runtime.scores().setAutomatic(board.id(), player, value);
-  }
-
-  /**
-   * Checks whether a player is blacklisted from automatic scoring.
-   *
-   * @param player the player to check
-   * @return whether the player is blacklisted
-   */
-  public boolean isBlacklisted(ServerPlayer player) {
-    StarryListRuntime runtime = StarryListMod.getRuntime();
-    return runtime != null && runtime.scores().isBlacklisted(player);
   }
 
   /**
@@ -160,7 +176,7 @@ public final class StarryListScriptRegistrar {
   }
 
   /**
-   * Accumulates sub-units in this board's persistent player state.
+   * Accumulates sub-units in this board's persistent player state while respecting the blacklist.
    *
    * @param player the player whose state changes
    * @param key the remainder state key
@@ -171,15 +187,21 @@ public final class StarryListScriptRegistrar {
   public int accumulate(ServerPlayer player, String key, int amount, int unitsPerWhole) {
     StarryListRuntime runtime = StarryListMod.getRuntime();
     if (runtime == null || runtime.registry().get(board.id()).isEmpty()
-        || amount <= 0 || unitsPerWhole <= 0 || isBlacklisted(player)) {
+        || amount <= 0 || unitsPerWhole <= 0) {
       return 0;
     }
 
-    return state(player).accumulate(key, amount, unitsPerWhole);
+    return runtime.scores().accumulateAutomatic(
+        board.id(), player, key, amount, unitsPerWhole
+    );
   }
 
   List<StarryListScriptSubscription> subscriptions() {
     return List.copyOf(subscriptions);
+  }
+
+  List<StarryListScriptLifecycle> lifecycles() {
+    return lifecycle == null ? List.of() : List.of(lifecycle);
   }
 
   private void addSubscription(

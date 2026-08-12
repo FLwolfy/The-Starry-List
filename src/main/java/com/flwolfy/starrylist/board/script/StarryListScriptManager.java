@@ -23,6 +23,8 @@ public final class StarryListScriptManager {
 
   private final StarryListScriptCompiler compiler = new StarryListScriptCompiler();
   private final StarryListScriptEventHub eventHub = new StarryListScriptEventHub();
+  private final StarryListScriptLifecycleHub lifecycleHub = new StarryListScriptLifecycleHub();
+  private Set<String> activeBoardIds = Set.of();
   private StarryListScriptSnapshot current;
   private List<ScriptInspection> inspections = List.of();
   private boolean previewed;
@@ -304,7 +306,13 @@ public final class StarryListScriptManager {
    * @param activeBoardIds currently loaded board identifiers
    */
   public synchronized void applyActiveBoards(List<String> activeBoardIds) {
-    eventHub.setActiveBoards(Set.copyOf(activeBoardIds));
+    Set<String> replacement = Set.copyOf(activeBoardIds);
+    Set<String> retained = new java.util.HashSet<>(this.activeBoardIds);
+    retained.retainAll(replacement);
+    eventHub.setActiveBoards(retained);
+    lifecycleHub.setActiveBoards(replacement);
+    eventHub.setActiveBoards(replacement);
+    this.activeBoardIds = replacement;
   }
 
   private StarryListScriptSnapshot prepare(
@@ -315,6 +323,7 @@ public final class StarryListScriptManager {
     try {
       registry.validateScriptBoards(staged.boards());
       eventHub.validate(staged.subscriptions());
+      lifecycleHub.validate(staged.lifecycles());
       return staged;
     } catch (RuntimeException exception) {
       closeQuietly(staged);
@@ -342,6 +351,7 @@ public final class StarryListScriptManager {
         try {
           registry.validateScriptBoards(List.of(board));
           eventHub.validate(inspection.snapshot().subscriptions());
+          lifecycleHub.validate(inspection.snapshot().lifecycles());
         } catch (RuntimeException exception) {
           error = rootMessage(exception);
         }
@@ -386,14 +396,18 @@ public final class StarryListScriptManager {
       try {
         List<StarryListBoard> proposedBoards = new ArrayList<>();
         List<StarryListScriptSubscription> proposedSubscriptions = new ArrayList<>();
+        List<StarryListScriptLifecycle> proposedLifecycles = new ArrayList<>();
         accepted.forEach(snapshot -> {
           proposedBoards.addAll(snapshot.boards());
           proposedSubscriptions.addAll(snapshot.subscriptions());
+          proposedLifecycles.addAll(snapshot.lifecycles());
         });
         proposedBoards.add(board);
         proposedSubscriptions.addAll(candidate.subscriptions());
+        proposedLifecycles.addAll(candidate.lifecycles());
         registry.validateScriptBoards(proposedBoards);
         eventHub.validate(proposedSubscriptions);
+        lifecycleHub.validate(proposedLifecycles);
         accepted.add(candidate);
         results.add(new ScriptInspection(
             inspection.sourceFile(), board.id(), board.objectiveName(),
@@ -412,18 +426,20 @@ public final class StarryListScriptManager {
     List<groovy.lang.GroovyClassLoader> loaders = new ArrayList<>();
     List<StarryListScriptBoard> boards = new ArrayList<>();
     List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
+    List<StarryListScriptLifecycle> lifecycles = new ArrayList<>();
     Map<String, Map<String, String>> translations = new HashMap<>();
     for (StarryListScriptSnapshot snapshot : accepted) {
       loaders.addAll(snapshot.classLoaders());
       boards.addAll(snapshot.boards());
       subscriptions.addAll(snapshot.subscriptions());
+      lifecycles.addAll(snapshot.lifecycles());
       snapshot.translations().forEach((locale, values) ->
           translations.computeIfAbsent(locale, ignored -> new HashMap<>()).putAll(values)
       );
     }
 
     return new PartialPreparation(
-        new StarryListScriptSnapshot(loaders, boards, subscriptions, translations),
+        new StarryListScriptSnapshot(loaders, boards, subscriptions, lifecycles, translations),
         List.copyOf(results)
     );
   }
@@ -480,6 +496,8 @@ public final class StarryListScriptManager {
     StarryListLangManager.getInstance().replaceScriptTranslations(
         snapshot == null ? Map.of() : snapshot.translations()
     );
+    eventHub.suspend();
+    lifecycleHub.commit(snapshot == null ? List.of() : snapshot.lifecycles());
     eventHub.commit(snapshot == null ? List.of() : snapshot.subscriptions());
   }
 
