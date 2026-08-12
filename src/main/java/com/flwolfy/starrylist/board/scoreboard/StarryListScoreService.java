@@ -128,6 +128,25 @@ public final class StarryListScoreService {
   }
 
   /**
+   * Replaces an automatically collected statistic unless the player is blacklisted.
+   *
+   * <p>Unlike the administrator-facing {@link #set(String, ServerPlayer, int)}, this method does
+   * not update either the visible or archived score of an excluded player.</p>
+   *
+   * @param boardId the board identifier
+   * @param player the player to update
+   * @param value the replacement score
+   * @return the stored score, or the unchanged current score when the player is blacklisted
+   */
+  public int setAutomatic(String boardId, ServerPlayer player, int value) {
+    if (blacklist.matches(player.getGameProfile().name())) {
+      return get(boardId, player.getUUID());
+    }
+
+    return set(boardId, player.getUUID(), player.getGameProfile().name(), value);
+  }
+
+  /**
    * Checks whether automatic statistics are disabled for a player.
    *
    * @param player the player to check

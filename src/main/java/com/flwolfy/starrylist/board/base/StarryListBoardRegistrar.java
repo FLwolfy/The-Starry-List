@@ -107,6 +107,19 @@ public final class StarryListBoardRegistrar {
   }
 
   /**
+   * Replaces an automatically collected statistic while respecting the blacklist.
+   *
+   * @param player the player whose score changes
+   * @param value the replacement score
+   * @return the stored score, or zero when no runtime is active
+   */
+  public int setAutomatic(ServerPlayer player, int value) {
+    StarryListRuntime runtime = StarryListMod.getRuntime();
+    return runtime == null || runtime.registry().get(board.id()).isEmpty()
+        ? 0 : runtime.scores().setAutomatic(board.id(), player, value);
+  }
+
+  /**
    * Checks whether a player is excluded from automatic board processing.
    *
    * @param player the player to check

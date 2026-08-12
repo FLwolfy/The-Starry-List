@@ -19,6 +19,13 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
+      - name: verify script SDK
+        run: |
+          mkdir -p build/script-sdk/verify
+          unzip -q build/libs/*-script-sdk.zip -d build/script-sdk/verify
+          cd build/script-sdk/verify
+          chmod +x ./gradlew
+          ./gradlew compileGroovy
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:

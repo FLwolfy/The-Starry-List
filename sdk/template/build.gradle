@@ -1,0 +1,48 @@
+plugins {
+	id 'groovy'
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+repositories {
+	maven {
+		url = uri('repository')
+	}
+	mavenCentral()
+	maven { url = 'https://maven.nucleoid.xyz/' }
+	maven { url = 'https://maven.shedaniel.me/' }
+	maven { url = 'https://maven.terraformersmc.com/releases/' }
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+	implementation "com.flwolfy.starrylist:the-starry-list:${starrylist_version}"
+	implementation "org.apache.groovy:groovy:${groovy_version}"
+}
+
+sourceSets {
+	main {
+		groovy {
+			srcDirs = ['config']
+		}
+		java {
+			srcDirs = []
+		}
+		resources {
+			srcDirs = []
+		}
+	}
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.withType(GroovyCompile).configureEach {
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+	groovyOptions.encoding = 'UTF-8'
+}

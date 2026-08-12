@@ -355,7 +355,9 @@ Groovy 编译阶段会拒绝直接调用 Fabric `Event.register()`。稳定的 `
 
 `listen` 的第一个参数是当前榜单内部的稳定订阅 ID，并不是 Fabric Event 的名称。例如榜单 ID 为 `ore_mining` 时，`block_break` 会组成 `ore_mining/block_break`。同一榜单内的 key 必须唯一；只要仍表示同一个 Event 和 inactive result，重载前后就应保持不变。
 
-registrar 还提供 `addAutomatic`、`isBlacklisted`、`display`、`isEnabled`、按玩家隔离的 `state`、`accumulate`、`runtime` 与 `server`。自动计分沿用内置榜单的黑名单与整数饱和规则；榜单私有状态和黑名单归档继续按 board ID 保存。
+registrar 还提供 `addAutomatic`、`setAutomatic`、`isBlacklisted`、`display`、`isEnabled`、按玩家隔离的 `state`、`accumulate`、`runtime` 与 `server`。累计量使用 `addAutomatic`，余额、等级等绝对值同步使用 `setAutomatic`；两者都尊重自动计分黑名单，管理员分数命令仍可强制更新归档分数。自动累加继续使用整数饱和规则；榜单私有状态和黑名单归档继续按 board ID 保存。
+
+运行 `./gradlew build` 还会生成 `the-starry-list-<版本>-script-sdk.zip`。SDK 是只用于编辑 Groovy 的最小 Gradle 工程，包含 `config/example.groovy`、StarryList 开发 JAR、源码和 Gradle Wrapper，不包含服务器、世界、Minecraft JAR 或运行配置。用 Gradle 工程方式打开、等待首次联网同步后，可用 `./gradlew compileGroovy` 检查脚本语法和 import。
 
 Cloth Config 的“刷新”按钮位于“自定义脚本榜单”标题栏右侧。它只会重新编译文件用于编辑器展示，并原地替换该子分类的条目，不会修改正在运行的榜单目录或重建 Screen。无效行会显示红色文字与贯穿线，整行操作被禁用，但不会阻止保存其他配置。服务端重载会用独立的新 classloader 分别编译脚本，加载所有有效脚本，跳过无效文件，并在聊天中以红色逐项报告文件名和错误。删除或跳过脚本会从服务器默认设置和玩家 profile 中清理其 ID，归档分数后删除 objective，同时保留榜单私有状态与黑名单归档。未来重新加入相同 ID 时，即使 objective 名称改变也会恢复分数。已打开的 SGUI 会立即刷新。
 
