@@ -29,8 +29,9 @@ import net.fabricmc.loader.api.FabricLoader;
 /** Loads, validates, atomically updates, and persists the server configuration. */
 public final class StarryListConfigManager {
 
-  private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir()
-      .resolve("starrylist.json");
+  private static final Path CONFIG_DIRECTORY = FabricLoader.getInstance().getConfigDir()
+      .resolve("starrylist");
+  private static final Path CONFIG_PATH = CONFIG_DIRECTORY.resolve("starrylist.json");
 
   private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
   private static final Gson GSON = new GsonBuilder()

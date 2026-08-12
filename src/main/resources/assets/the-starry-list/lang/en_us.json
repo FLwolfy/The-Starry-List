@@ -32,7 +32,7 @@
   "starrylist.config.board.default_disabled.tooltip": "Players using the DEFAULT profile do not see this board.",
   "starrylist.config.board.reset.tooltip": "Restore both loading and DEFAULT-profile settings for this board.",
   "starrylist.config.all": "All",
-  "starrylist.config.local_only": "This screen only saves this client's local config/starrylist.json. Run /starryadmin reload to apply it to single-player or a LAN integrated server; it cannot modify a remote dedicated server.",
+  "starrylist.config.local_only": "This screen only saves this client's local config/starrylist/starrylist.json. Run /starryadmin reload to apply it to single-player or a LAN integrated server; it cannot modify a remote dedicated server.",
   "starrylist.config.language": "Server message language",
   "starrylist.config.language.tooltip": "Used for server command feedback and leaderboard titles.",
   "starrylist.config.general.language.invalid": "Select a supported server message language.",

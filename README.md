@@ -51,7 +51,7 @@ The mod has no hard dependency on another leaderboard, economy, or permissions m
 
 1. Install Fabric Loader for Minecraft 26.1.
 2. Place Fabric API and the The-Starry-List JAR in the server's `mods` directory.
-3. Start the server. The first startup creates `config/starrylist.json`.
+3. Start the server. The first startup creates `config/starrylist/starrylist.json`.
 4. Edit the configuration if needed, then run `/starryadmin reload` or restart the server.
 
 A dedicated server does not need Cloth Config or ModMenu. Regular players do not need to install this mod on their clients.
@@ -69,7 +69,7 @@ Open The-Starry-List from ModMenu. The screen edits the current game directory's
 
 ### Remote server configuration
 
-The client configuration screen cannot edit a remote dedicated server. A remote server administrator must edit the server's `config/starrylist.json` and apply it with the administrator reload command.
+The client configuration screen cannot edit a remote dedicated server. A remote server administrator must edit the server's `config/starrylist/starrylist.json` and apply it with the administrator reload command.
 
 ---
 
@@ -153,7 +153,7 @@ Teleportation does not create these continuous-movement statistics, so `/tp`, en
 ### File location
 
 ```text
-config/starrylist.json
+config/starrylist/starrylist.json
 ```
 
 The path is relative to the Minecraft game directory or dedicated-server root.

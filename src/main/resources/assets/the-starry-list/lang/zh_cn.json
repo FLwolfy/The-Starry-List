@@ -32,7 +32,7 @@
   "starrylist.config.board.default_disabled.tooltip": "使用 DEFAULT profile 的玩家不会显示该榜单。",
   "starrylist.config.board.reset.tooltip": "同时恢复该榜单的加载状态和 DEFAULT profile 设置。",
   "starrylist.config.all": "全部",
-  "starrylist.config.local_only": "此界面只保存当前客户端本地的 config/starrylist.json；需要执行 /starryadmin reload 才会应用于单人游戏或 LAN 集成服务器，且无法修改远程独立服务器。",
+  "starrylist.config.local_only": "此界面只保存当前客户端本地的 config/starrylist/starrylist.json；需要执行 /starryadmin reload 才会应用于单人游戏或 LAN 集成服务器，且无法修改远程独立服务器。",
   "starrylist.config.language": "服务端消息语言",
   "starrylist.config.language.tooltip": "用于服务端指令反馈和榜单标题。",
   "starrylist.config.general.language.invalid": "请选择受支持的服务端消息语言。",

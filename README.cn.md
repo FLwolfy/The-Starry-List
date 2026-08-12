@@ -51,7 +51,7 @@ See the English document [here](./README.md).
 
 1. 安装适用于 Minecraft 26.1 的 Fabric Loader。
 2. 将 Fabric API 和 The-Starry-List JAR 放入服务器的 `mods` 文件夹。
-3. 启动服务器。首次启动会生成 `config/starrylist.json`。
+3. 启动服务器。首次启动会生成 `config/starrylist/starrylist.json`。
 4. 根据需要修改配置，然后执行 `/starryadmin reload` 或重启服务器。
 
 独立服务器不需要安装 Cloth Config 或 ModMenu。普通玩家也不需要在客户端安装本模组。
@@ -69,7 +69,7 @@ See the English document [here](./README.md).
 
 ### 远程服务器配置
 
-客户端上的配置页面不能编辑远程独立服务器。远程服务器管理员必须直接编辑服务器端的 `config/starrylist.json`，并使用管理员重载指令应用修改。
+客户端上的配置页面不能编辑远程独立服务器。远程服务器管理员必须直接编辑服务器端的 `config/starrylist/starrylist.json`，并使用管理员重载指令应用修改。
 
 ---
 
@@ -153,7 +153,7 @@ See the English document [here](./README.md).
 ### 文件位置
 
 ```text
-config/starrylist.json
+config/starrylist/starrylist.json
 ```
 
 路径相对于当前 Minecraft 游戏目录或独立服务器根目录。
