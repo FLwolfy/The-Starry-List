@@ -218,6 +218,7 @@ public final class StarryListConfigManager {
    */
   public boolean removeBoards(Set<String> boardIds) {
     if (boardIds.isEmpty()) {
+      applyBoardLoading(data());
       return true;
     }
 
@@ -228,8 +229,12 @@ public final class StarryListConfigManager {
     List<String> disabled = current.boards().disabledBoards().stream()
         .filter(id -> !boardIds.contains(id))
         .toList();
+    List<String> enabledScripts = current.boards().enabledScriptBoards().stream()
+        .filter(id -> !boardIds.contains(id))
+        .toList();
     if (enabled.equals(current.display().enabledBoards())
-        && disabled.equals(current.boards().disabledBoards())) {
+        && disabled.equals(current.boards().disabledBoards())
+        && enabledScripts.equals(current.boards().enabledScriptBoards())) {
       return true;
     }
 
@@ -241,7 +246,7 @@ public final class StarryListConfigManager {
             current.display().rotationIntervalSeconds(),
             enabled
         ),
-        new StarryListConfigData.Boards(disabled),
+        new StarryListConfigData.Boards(disabled, enabledScripts),
         current.blacklist()
     ));
   }
@@ -346,6 +351,11 @@ public final class StarryListConfigManager {
         defaults.boards().disabledBoards(),
         removedBoardIds
     );
+    List<String> enabledScripts = scriptBoardIds(
+        boards.get("enabledScriptBoards"),
+        defaults.boards().enabledScriptBoards(),
+        removedBoardIds
+    );
     List<String> patterns = patterns(
         blacklist.get("playerNamePatterns"),
         defaults.blacklist().playerNamePatterns()
@@ -354,7 +364,7 @@ public final class StarryListConfigManager {
     return new StarryListConfigData(
         new StarryListConfigData.General(language, permission),
         new StarryListConfigData.Display(hidden, rotation, interval, enabled),
-        new StarryListConfigData.Boards(disabled),
+        new StarryListConfigData.Boards(disabled, enabledScripts),
         new StarryListConfigData.Blacklist(patterns)
     );
   }
@@ -433,6 +443,22 @@ public final class StarryListConfigManager {
     return StarryListConfigData.normalizeIds(new ArrayList<>(accepted));
   }
 
+  private static List<String> scriptBoardIds(
+      JsonElement value,
+      List<String> fallback,
+      Set<String> removedBoardIds
+  ) {
+    Set<String> scripts = StarryListBoardRegistry.getInstance().definitions().stream()
+        .filter(com.flwolfy.starrylist.board.script.StarryListScriptBoard.class::isInstance)
+        .map(com.flwolfy.starrylist.board.base.StarryListBoard::id)
+        .collect(java.util.stream.Collectors.toSet());
+    scripts.addAll(com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
+        .previewIds());
+    return boardIds(value, fallback, removedBoardIds).stream()
+        .filter(scripts::contains)
+        .toList();
+  }
+
   private static List<String> patterns(JsonElement value, List<String> fallback) {
     if (value == null || !value.isJsonArray()) {
       return fallback;
@@ -471,16 +497,25 @@ public final class StarryListConfigManager {
             StarryListConfigData.normalizeIds(value.display().enabledBoards())
         ),
         new StarryListConfigData.Boards(
-            StarryListConfigData.normalizeIds(value.boards().disabledBoards())
+            StarryListConfigData.normalizeIds(value.boards().disabledBoards()),
+            StarryListConfigData.normalizeIds(value.boards().enabledScriptBoards())
         ),
         value.blacklist()
     );
   }
 
   private static void applyBoardLoading(StarryListConfigData value) {
-    StarryListBoardRegistry.getInstance().applyDisabledBoards(
-        Set.copyOf(value.boards().disabledBoards())
-    );
+    StarryListBoardRegistry registry = StarryListBoardRegistry.getInstance();
+    Set<String> enabledScripts = Set.copyOf(value.boards().enabledScriptBoards());
+    Set<String> scriptIds = registry.definitions().stream()
+        .filter(com.flwolfy.starrylist.board.script.StarryListScriptBoard.class::isInstance)
+        .map(com.flwolfy.starrylist.board.base.StarryListBoard::id)
+        .collect(java.util.stream.Collectors.toSet());
+    Set<String> disabled = value.boards().disabledBoards().stream()
+        .filter(id -> !scriptIds.contains(id))
+        .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+    scriptIds.stream().filter(id -> !enabledScripts.contains(id)).forEach(disabled::add);
+    registry.applyDisabledBoards(disabled);
   }
 
   private static void saveStatic(StarryListConfigData value) throws Exception {

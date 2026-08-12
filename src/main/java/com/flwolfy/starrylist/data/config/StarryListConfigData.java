@@ -63,16 +63,20 @@ public record StarryListConfigData(
   /**
    * Controls which discovered board modules are loaded into the active catalog.
    *
-   * @param disabledBoards discovered board identifiers excluded from gameplay
+   * @param disabledBoards discovered built-in board identifiers excluded from gameplay
+   * @param enabledScriptBoards Groovy board identifiers explicitly enabled for gameplay
    */
-  public record Boards(List<String> disabledBoards) {
+  public record Boards(List<String> disabledBoards, List<String> enabledScriptBoards) {
     /**
      * Creates board loading settings with an immutable disabled-board collection.
      *
-     * @param disabledBoards discovered board identifiers excluded from gameplay
+     * @param disabledBoards discovered built-in board identifiers excluded from gameplay
+     * @param enabledScriptBoards Groovy board identifiers explicitly enabled for gameplay
      */
     public Boards {
       disabledBoards = disabledBoards == null ? null : List.copyOf(disabledBoards);
+      enabledScriptBoards = enabledScriptBoards == null
+          ? null : List.copyOf(enabledScriptBoards);
     }
   }
 
@@ -100,7 +104,7 @@ public record StarryListConfigData(
           20,
           List.of("mining", "placing", "mob_kills")
       ),
-      new Boards(List.of()),
+      new Boards(List.of(), List.of()),
       new Blacklist(List.of())
   );
 
@@ -162,6 +166,24 @@ public record StarryListConfigData(
       ) || new HashSet<>(disabled).size() != disabled.size()
           || disabled.stream().anyMatch(id -> !registeredIds.contains(id))) {
         invalid.add("boards.disabledBoards");
+      }
+    }
+    if (boards == null || boards.enabledScriptBoards() == null) {
+      invalid.add("boards.enabledScriptBoards");
+    } else {
+      List<String> enabledScripts = normalizeInput(boards.enabledScriptBoards());
+      Set<String> scriptIds = StarryListBoardRegistry.getInstance().definitions().stream()
+          .filter(com.flwolfy.starrylist.board.script.StarryListScriptBoard.class::isInstance)
+          .map(com.flwolfy.starrylist.board.base.StarryListBoard::id)
+          .collect(java.util.stream.Collectors.toSet());
+      scriptIds.addAll(
+          com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance().previewIds()
+      );
+      if (boards.enabledScriptBoards().stream().anyMatch(
+          value -> value == null || value.isBlank()
+      ) || new HashSet<>(enabledScripts).size() != enabledScripts.size()
+          || enabledScripts.stream().anyMatch(id -> !scriptIds.contains(id))) {
+        invalid.add("boards.enabledScriptBoards");
       }
     }
     if (blacklist == null || blacklist.playerNamePatterns() == null) {

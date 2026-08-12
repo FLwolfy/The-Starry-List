@@ -177,7 +177,8 @@ config/starrylist/starrylist.json
     ]
   },
   "boards": {
-    "disabledBoards": []
+    "disabledBoards": [],
+    "enabledScriptBoards": []
   },
   "blacklist": {
     "playerNamePatterns": []
@@ -220,11 +221,12 @@ JSON 中的数组顺序不会改变显示顺序。启用项始终按榜单模块
 
 ### 榜单加载设置（`boards`）
 
-| 字段             | 类型       | 默认值 | 说明                                            |
-|------------------|------------|--------|-------------------------------------------------|
-| `disabledBoards` | `string[]` | `[]`   | 不加载到游戏中的已发现榜单；不允许重复或未知 ID |
+| 字段                  | 类型       | 默认值 | 说明                                                 |
+|-----------------------|------------|--------|------------------------------------------------------|
+| `disabledBoards`      | `string[]` | `[]`   | 不加载到游戏中的内置榜单；不允许重复或未知 ID       |
+| `enabledScriptBoards` | `string[]` | `[]`   | 显式允许加载的 Groovy 榜单；新导入脚本默认处于停用状态 |
 
-榜单加载状态与默认 profile 选择互相独立。已加载榜单会持有 objective、接收统计事件，并出现在配置界面和 SGUI；关闭加载后会归档并删除 objective、停用受管事件回调并退出运行时 UI，但 DEFAULT 和玩家 profile 中原有的选择仍会保留，以便重新开启时恢复。Cloth Config 分别提供“开启/关闭”“默认启用/默认停用”和“重置”。保存界面只写入 JSON 文件；执行 `/starryadmin reload` 后才会在当前世界中应用，无需重启。
+榜单加载状态与默认 profile 选择互相独立。内置榜单默认加载，列入 `disabledBoards` 后停用；Groovy 榜单默认停用，只有显式列入 `enabledScriptBoards` 才会加载。因此新导入脚本始终安全地保持停用，而服主主动启用后会跨 reload 和重启保留。删除脚本会清理其 allowlist 记录，日后重新导入相同 ID 时仍默认停用。已加载榜单会持有 objective、接收统计事件，并出现在配置界面和 SGUI；关闭加载后会归档并删除 objective、停用受管事件回调并退出运行时 UI，但 DEFAULT 和玩家 profile 中原有的选择仍会保留，以便重新开启时恢复。Cloth Config 分别提供“开启/关闭”“默认启用/默认停用”和“重置”。保存界面会写入 JSON；执行 `/starryadmin reload` 可立即应用，而每次加载世界/启动服务端时也会自动执行一次配置与脚本的联合 reload。
 
 ### 黑名单（`blacklist`）
 
@@ -342,7 +344,7 @@ void subscribe(StarryListScriptRegistrar registrar) {
 
 Groovy 编译阶段会拒绝直接调用 Fabric `Event.register()`。稳定的 `boardId/key` 只创建一个永久 Java 代理；重载只替换其 Closure delegate，所以连续重载不会重复注册。回调抛出异常时只禁用该订阅，并在下次成功重载前返回 inactive result。若更换 Fabric Event 或 inactive result，必须使用新 key。
 
-在 `subscribe(...)` 中必须通过 `registrar.listen("stable_key", EVENT, callback)` 注册 Fabric 事件，不要直接调用 `EVENT.register(...)`。Fabric Event 没有移除回调的 API；`listen` 只安装一次永久代理，再根据 `boards.disabledBoards` 热启用或抑制代理，避免配置重载后出现重复回调或已关闭榜单仍运行回调。带返回值的事件使用 `registrar.listen("stable_key", EVENT, inactiveResult, callback)`。`listen` 的第一个参数是当前榜单内部的稳定订阅 ID，并不是 Fabric Event 的名称。例如榜单 ID 为 `ore_mining` 时，`block_break` 会组成 `ore_mining/block_break`。同一榜单内的 key 必须唯一；只要仍表示同一个 Event 和 inactive result，重载前后就应保持不变。
+在 `subscribe(...)` 中必须通过 `registrar.listen("stable_key", EVENT, callback)` 注册 Fabric 事件，不要直接调用 `EVENT.register(...)`。Fabric Event 没有移除回调的 API；`listen` 只安装一次永久代理，再根据榜单加载状态热启用或抑制代理，避免配置重载后出现重复回调或已关闭榜单仍运行回调。带返回值的事件使用 `registrar.listen("stable_key", EVENT, inactiveResult, callback)`。`listen` 的第一个参数是当前榜单内部的稳定订阅 ID，并不是 Fabric Event 的名称。例如榜单 ID 为 `ore_mining` 时，`block_break` 会组成 `ore_mining/block_break`。同一榜单内的 key 必须唯一；只要仍表示同一个 Event 和 inactive result，重载前后就应保持不变。
 
 脚本若持有 `registrar.listen()` 之外的资源，可以用 `registrar.onActiveStateChanged(onActivated, onDeactivated)` 注册一组生命周期 Closure。榜单进入活动目录后执行初始化；榜单被停用、替换、删除或服务器停止前执行清理。脚本 validate 和编辑器预览不会执行这些 Closure。该接口只应用于缓存、采样 baseline、动态监听器等自有资源；普通 `listen()` 订阅不需要手动清理。
 
@@ -367,7 +369,7 @@ Groovy 脚本属于完全受信任的服务器代码，可调用公开的 Minecr
 
 榜单默认使用 `starrylist.board.<id>.title` 和 `starrylist.board.<id>.description` 两个本地化键。将正文加入各语言 JSON 后，基类会通过 `StarryListLangManager` 解析，并依次支持玩家语言、服务端配置语言、英文和键名回退。需要多行 lore 的模块可以重写 `loreTranslationKeys()`，所有面向玩家的正文仍保存在语言资源中。
 
-新增榜单只要不在 `boards.disabledBoards` 中就会加载，但只有加入 `display.enabledBoards` 后才会进入 DEFAULT profile。全新配置仍只为该 profile 选择 `mining`、`placing` 与 `mob_kills`。Java 类需要重新构建并重启才能发现；`/starryadmin reload` 不会重新扫描 Java 模块，也不会创建第二份静态注册表。
+新增 Java 榜单只要不在 `boards.disabledBoards` 中就会加载；新导入的 Groovy 榜单默认停用，必须加入 `boards.enabledScriptBoards` 才会加载。两类榜单都只有加入 `display.enabledBoards` 后才会进入 DEFAULT profile。全新配置仍只为该 profile 选择 `mining`、`placing` 与 `mob_kills`。Java 类需要重新构建并重启才能发现；`/starryadmin reload` 不会重新扫描 Java 模块，也不会创建第二份静态注册表。
 
 ---
 

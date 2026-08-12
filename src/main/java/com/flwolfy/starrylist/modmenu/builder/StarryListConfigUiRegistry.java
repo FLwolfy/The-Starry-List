@@ -47,6 +47,7 @@ public final class StarryListConfigUiRegistry {
     );
     registry.hide("display.enabledBoards");
     registry.hide("boards.disabledBoards");
+    registry.hide("boards.enabledScriptBoards");
     registry.hide("blacklist.playerNamePatterns");
 
     registry.present("general.language", "language");

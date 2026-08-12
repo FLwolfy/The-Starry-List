@@ -117,7 +117,7 @@ final class StarlightExpeditionBoard extends StarryListScriptBoard {
       if (now - previous >= STARGAZING_COOLDOWN) {
         // display() reads all effective display preferences. isEnabled() is the board shortcut.
         def preferences = registrar.display(player)
-        int focusBonus = preferences.visible() && registrar.isEnabled(player) ? 3 : 1
+        int focusBonus = !preferences.hidden() && registrar.isEnabled(player) ? 3 : 1
         int oldPoints = registrar.state(player).getInt(POINTS_KEY, 0)
         int newPoints = award(registrar, player, focusBonus)
         if (newPoints != oldPoints) {

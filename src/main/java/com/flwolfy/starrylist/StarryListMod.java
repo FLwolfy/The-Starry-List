@@ -43,10 +43,29 @@ public final class StarryListMod implements ModInitializer {
     });
 
     ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-      StarryListScriptManager.getInstance().validateActiveIcons();
+      StarryListScriptManager scripts = StarryListScriptManager.getInstance();
+      scripts.validateActiveIcons();
       runtime = new StarryListRuntime(server);
-      StarryListScriptManager.getInstance().applyActiveBoards(runtime.registry().ids());
-      config.setApplyListener(ignored -> runtime.applyConfig());
+      config.setApplyListener(ignored -> {
+        StarryListRuntime active = runtime;
+        if (active != null) {
+          active.applyConfig();
+        }
+      });
+
+      StarryListScriptManager.OperationResult reload = scripts.reloadAll(runtime);
+      if (reload.success()) {
+        LOGGER.info("Reloaded StarryList for world startup: {}", reload.message());
+        scripts.inspections().stream().filter(value -> !value.valid()).forEach(value ->
+            LOGGER.warn("Skipped {} during world startup: {}", value.sourceFile(), value.message())
+        );
+      } else {
+        scripts.applyActiveBoards(runtime.registry().ids());
+        LOGGER.error(
+            "Could not reload StarryList for world startup; kept the prepared catalog: {}",
+            reload.message()
+        );
+      }
       LOGGER.info("The-Starry-List is ready");
     });
     ServerLifecycleEvents.SERVER_STOPPING.register(server -> {

@@ -25,6 +25,7 @@ public final class StarryListBoardSection {
 
   private static final String ENABLED_PATH = "display.enabledBoards";
   private static final String DISABLED_PATH = "boards.disabledBoards";
+  private static final String ENABLED_SCRIPTS_PATH = "boards.enabledScriptBoards";
 
   private final StarryListConfigEditorModel model;
   private final ConfigEntryBuilder entries;
@@ -133,7 +134,7 @@ public final class StarryListBoardSection {
       result.add(createBoardEntry(
           board.id(),
           title,
-          new StarryListBoardSettings(true, false),
+          new StarryListBoardSettings(false, false),
           valid,
           valid ? null : Component.literal(inspection.message())
       ));
@@ -144,7 +145,7 @@ public final class StarryListBoardSection {
       StarryListBoardListEntry entry = createBoardEntry(
           boardId,
           Component.literal(inspection.title(locale())),
-          new StarryListBoardSettings(true, false),
+          new StarryListBoardSettings(false, false),
           inspection.valid(),
           inspection.valid()
               ? Component.translatable("starrylist.config.boards.custom.pending")
@@ -178,8 +179,13 @@ public final class StarryListBoardSection {
     if (boardId == null) {
       return new StarryListBoardSettings(false, false);
     }
+    boolean script = StarryListBoardRegistry.getInstance().definition(boardId)
+        .filter(StarryListScriptBoard.class::isInstance)
+        .isPresent();
     return new StarryListBoardSettings(
-        !strings(DISABLED_PATH).contains(boardId),
+        script
+            ? strings(ENABLED_SCRIPTS_PATH).contains(boardId)
+            : !strings(DISABLED_PATH).contains(boardId),
         strings(ENABLED_PATH).contains(boardId)
     );
   }
@@ -188,8 +194,22 @@ public final class StarryListBoardSection {
     if (boardId == null) {
       return;
     }
+    boolean script = StarryListBoardRegistry.getInstance().definition(boardId)
+        .filter(StarryListScriptBoard.class::isInstance)
+        .isPresent()
+        || StarryListScriptManager.getInstance().previewIds().contains(boardId);
     List<String> disabled = new ArrayList<>(strings(DISABLED_PATH));
-    if (settings.loaded()) {
+    List<String> enabledScripts = new ArrayList<>(strings(ENABLED_SCRIPTS_PATH));
+    if (script) {
+      disabled.remove(boardId);
+      if (settings.loaded()) {
+        if (!enabledScripts.contains(boardId)) {
+          enabledScripts.add(boardId);
+        }
+      } else {
+        enabledScripts.remove(boardId);
+      }
+    } else if (settings.loaded()) {
       disabled.remove(boardId);
     } else if (!disabled.contains(boardId)) {
       disabled.add(boardId);
@@ -203,12 +223,17 @@ public final class StarryListBoardSection {
       enabled.remove(boardId);
     }
     model.set(DISABLED_PATH, StarryListConfigData.normalizeIds(disabled));
+    model.set(ENABLED_SCRIPTS_PATH, StarryListConfigData.normalizeIds(enabledScripts));
     model.set(ENABLED_PATH, StarryListConfigData.normalizeIds(enabled));
   }
 
   private void normalizeLists() {
     model.set(ENABLED_PATH, StarryListConfigData.normalizeIds(strings(ENABLED_PATH)));
     model.set(DISABLED_PATH, StarryListConfigData.normalizeIds(strings(DISABLED_PATH)));
+    model.set(
+        ENABLED_SCRIPTS_PATH,
+        StarryListConfigData.normalizeIds(strings(ENABLED_SCRIPTS_PATH))
+    );
   }
 
   @SuppressWarnings("unchecked")

@@ -16,6 +16,10 @@ Minecraft server and contains no world, Minecraft JAR, or run configuration.
 6. Copy finished scripts to the server's `config/starrylist/boards/` directory, then run
    `/starryadmin scripts validate` and `/starryadmin scripts reload` on the server.
 
+Newly imported Groovy boards are disabled by default. Review the board, enable its **On/Off**
+control in configuration (or add its ID to `boards.enabledScriptBoards`), save, and reload before
+it can create an objective or receive managed events.
+
 The included project intentionally uses dynamic Groovy. `compileGroovy` checks syntax and classpath
 resolution without forcing explicit types onto Fabric event Closure parameters. Server validation
 remains authoritative for board metadata, installed-mod compatibility, and reload behavior.

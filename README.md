@@ -177,7 +177,8 @@ The path is relative to the Minecraft game directory or dedicated-server root.
     ]
   },
   "boards": {
-    "disabledBoards": []
+    "disabledBoards": [],
+    "enabledScriptBoards": []
   },
   "blacklist": {
     "playerNamePatterns": []
@@ -222,9 +223,10 @@ Array order does not customize display order. Enabled entries use the order decl
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `disabledBoards` | `string[]` | `[]` | Discovered boards not loaded into gameplay; duplicates and unknown IDs are invalid |
+| `disabledBoards` | `string[]` | `[]` | Discovered built-in boards not loaded into gameplay; duplicates and unknown IDs are invalid |
+| `enabledScriptBoards` | `string[]` | `[]` | Groovy boards explicitly allowed to load; newly imported scripts are disabled by default |
 
-Loading and default-profile selection are independent. A loaded board owns its objective, collects events, and appears in configuration and SGUI controls. An unloaded board archives and removes its objective, disables its managed event callbacks, and disappears from runtime UI, while its DEFAULT and player profile selections are retained for restoration. Cloth Config exposes **On/Off**, **Default on/off**, and **Reset** separately. Saving the screen only writes the JSON file; `/starryadmin reload` applies both settings in the active world without restarting.
+Loading and default-profile selection are independent. Built-in boards are loaded unless listed in `disabledBoards`; Groovy boards are unloaded unless explicitly listed in `enabledScriptBoards`. This makes every newly imported script safe-by-default, while an explicit enable survives reloads and restarts. Removing a script cleans its allowlist entry, so importing that ID again starts disabled. A loaded board owns its objective, collects events, and appears in configuration and SGUI controls. An unloaded board archives and removes its objective, disables its managed event callbacks, and disappears from runtime UI, while its DEFAULT and player profile selections are retained for restoration. Cloth Config exposes **On/Off**, **Default on/off**, and **Reset** separately. Saving the screen writes the JSON file; `/starryadmin reload` applies it immediately, and every world/server startup also performs one automatic combined configuration-and-script reload.
 
 ### Blacklist (`blacklist`)
 
@@ -375,11 +377,11 @@ Create a public concrete subclass of `StarryListBoard` anywhere below `com.flwol
 
 The bound `StarryListBoardRegistrar` provides automatic scoring with internal blacklist and overflow handling, delayed runtime access, and a persistent per-player board-state namespace. Board code therefore does not need to inspect blacklist configuration or modify the config manager, score service, scoreboard manager, sidebar, commands, Cloth Config, or SGUI. The registry recursively discovers classes once during Mod initialization, validates metadata and duplicates, and aborts startup with the offending class or value if loading fails.
 
-Register Fabric events from `register(...)` through `registrar.listen("stable_key", EVENT, callback)` rather than calling `EVENT.register(...)` directly. Fabric events have no callback-removal API: `listen` installs one permanent proxy and hot-enables or suppresses it with the board's `boards.disabledBoards` state, preventing duplicate or still-running callbacks across configuration reloads. Value-returning events use `registrar.listen("stable_key", EVENT, inactiveResult, callback)`. A board that owns caches or secondary vanilla listeners can also use `onActiveStateChanged(...)` to rebuild them when enabled and release them when disabled. The built-in placing board listens for successful vanilla `BLOCK_PLACE` game events, while travel samples deltas from the player's vanilla movement statistics at the end of each server tick. The project therefore has no Mixin classes or shared Mixin JSON to maintain.
+Register Fabric events from `register(...)` through `registrar.listen("stable_key", EVENT, callback)` rather than calling `EVENT.register(...)` directly. Fabric events have no callback-removal API: `listen` installs one permanent proxy and hot-enables or suppresses it with the board loading state, preventing duplicate or still-running callbacks across configuration reloads. Value-returning events use `registrar.listen("stable_key", EVENT, inactiveResult, callback)`. A board that owns caches or secondary vanilla listeners can also use `onActiveStateChanged(...)` to rebuild them when enabled and release them when disabled. The built-in placing board listens for successful vanilla `BLOCK_PLACE` game events, while travel samples deltas from the player's vanilla movement statistics at the end of each server tick. The project therefore has no Mixin classes or shared Mixin JSON to maintain.
 
 The conventional localization keys are `starrylist.board.<id>.title` and `starrylist.board.<id>.description`. Add their text to each bundled language JSON; the base class resolves them through `StarryListLangManager`, including player-locale, configured-language, English, and key fallbacks. A module needing multiple lore lines can override `loreTranslationKeys()` while keeping all user-facing content in language resources.
 
-New boards are loaded unless their IDs are added to `boards.disabledBoards`, but they remain absent from the DEFAULT profile until added to `display.enabledBoards`. A newly generated config intentionally selects only `mining`, `placing`, and `mob_kills` for that profile. Rebuild and restart to discover Java classes; `/starryadmin reload` never rescans Java modules or creates another static registry.
+New Java boards are loaded unless their IDs are added to `boards.disabledBoards`. Newly imported Groovy boards are disabled until their IDs are added to `boards.enabledScriptBoards`. Either type remains absent from the DEFAULT profile until added to `display.enabledBoards`. A newly generated config intentionally selects only `mining`, `placing`, and `mob_kills` for that profile. Rebuild and restart to discover Java classes; `/starryadmin reload` never rescans Java modules or creates another static registry.
 
 ---
 

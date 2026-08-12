@@ -16,6 +16,9 @@
 6. 将完成的脚本复制到服务器的 `config/starrylist/boards/`，再执行
    `/starryadmin scripts validate` 和 `/starryadmin scripts reload`。
 
+新导入的 Groovy 榜单默认停用。检查脚本后，在配置界面打开它的“开启/关闭”，或把其 ID
+加入 `boards.enabledScriptBoards`，保存并 reload 后，它才会创建 objective 或接收受管事件。
+
 模板默认使用动态 Groovy，避免要求服主为 Fabric Event 的 Closure 参数逐个声明类型。
 `compileGroovy` 负责检查语法和类路径解析；服务端验证仍负责榜单元数据、已安装模组兼容性
 和重载行为检查。
