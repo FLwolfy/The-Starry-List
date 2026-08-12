@@ -1,53 +1,77 @@
 import com.flwolfy.starrylist.board.base.StarryListBoardPresentation
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
 import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
+import com.flwolfy.starrylist.data.state.StarryListBoardState
+import com.flwolfy.starrylist.display.StarryListSidebarManager
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags
+import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.state.BlockState
 
 import java.util.UUID
 
 /**
- * A deliberately feature-rich example: explorers collect stardust by mining and stargazing.
+ * Complete SDK example: players collect starlight by exploring the world.
  *
- * The persistent "points" value mirrors successful automatic score writes. The visible leaderboard
- * can be synchronized from it while every public StarryListScriptRegistrar API is shown in context.
+ * Scoring rules:
+ * - Mine an ore block:                     5 points
+ * - Mine 32 non-ore blocks:                1 point
+ * - Use a spyglass after the cooldown:     1 point
+ * - Stargaze while this board is visible:  3 points instead
+ *
+ * This file demonstrates every public StarryListScriptRegistrar API. A real board may use only
+ * the methods it needs. Automatic score methods handle the player blacklist internally.
  */
 final class StarlightExpeditionBoard extends StarryListScriptBoard {
   private static final String POINTS_KEY = "points"
   private static final String BLOCK_REMAINDER_KEY = "ordinary_block_remainder"
-  private static final long STARGAZING_COOLDOWN = 1200L
 
-  // This cache is intentionally transient. The lifecycle callback clears it on reload/disable.
+  private static final int ORE_POINTS = 5
+  private static final int BLOCKS_PER_SURVEY_POINT = 32
+  private static final int STARGAZING_POINTS = 1
+  private static final int FOCUSED_STARGAZING_POINTS = 3
+  private static final long STARGAZING_COOLDOWN_TICKS = 1200L
+
+  /**
+   * Temporary runtime-only data. Persistent values belong in registrar.state(...), not this map.
+   * The lifecycle cleanup below clears this cache whenever the board is replaced or deactivated.
+   */
   private final Map<UUID, Long> lastStargazingTick = [:]
+
+  // Board metadata ------------------------------------------------------------------------------
 
   @Override
   String id() {
-    "starlight_expedition"
+    return "starlight_expedition"
   }
 
   @Override
   String objectiveName() {
-    "sl_starlight"
+    return "sl_starlight"
   }
 
   @Override
   int order() {
-    1000
+    return 1000
   }
 
   @Override
   ItemStack icon() {
-    Items.NETHER_STAR.defaultInstance
+    return Items.NETHER_STAR.defaultInstance
   }
 
   @Override
   Map<String, StarryListBoardPresentation> translations() {
-    [
+    return [
       en_us: text(
           "Starlight Expedition",
           "Mine ores, survey blocks, and observe the sky with a spyglass.",
@@ -61,92 +85,140 @@ final class StarlightExpeditionBoard extends StarryListScriptBoard {
     ]
   }
 
+  // Registration entry point -------------------------------------------------------------------
+
   @Override
   void subscribe(StarryListScriptRegistrar registrar) {
-    // onActiveStateChanged(): initialize runtime resources and clean transient resources later.
+    registerLifecycle(registrar)
+    registerBlockBreakListener(registrar)
+    registerSpyglassListener(registrar)
+  }
+
+  // Lifecycle ----------------------------------------------------------------------------------
+
+  private void registerLifecycle(StarryListScriptRegistrar registrar) {
     registrar.onActiveStateChanged(
         {
-          // runtime() exposes all advanced StarryList world services when they are really needed.
-          registrar.runtime().registry().get(id())
+          // runtime(): advanced access to StarryList services. This verifies that this board is
+          // present in the active registry before restoring online players' persistent scores.
+          registrar.runtime().registry().get(id()).orElseThrow()
 
-          // server() is the convenient direct route to MinecraftServer.
+          // server(): direct access to MinecraftServer. Only online players need synchronization.
           registrar.server().playerList.players.each { ServerPlayer player ->
-            // state(UUID) is useful when code has an identity rather than a player object.
+            // state(UUID): persistent storage when only a player's identity is available.
             int savedPoints = registrar.state(player.UUID).getInt(POINTS_KEY, 0)
 
-            // setAutomatic() synchronizes an absolute value and handles blacklist internally.
+            // setAutomatic(): replace an absolute score, with blacklist handling built in.
             registrar.setAutomatic(player, savedPoints)
           }
         },
         {
+          // onActiveStateChanged(): release resources owned by this script. Registrations created
+          // with registrar.listen(...) are managed automatically and need no manual cleanup.
           lastStargazingTick.clear()
         }
     )
+  }
 
-    // Three-argument listen(): use this form for a void-returning Fabric event.
+  // Void-returning event -----------------------------------------------------------------------
+
+  private void registerBlockBreakListener(StarryListScriptRegistrar registrar) {
+    // PlayerBlockBreakEvents.After declares these exact five parameter types. Keep them explicit
+    // so the IDE can complete Level, Player, BlockPos, BlockState, and BlockEntity members.
     registrar.listen("block_break", PlayerBlockBreakEvents.AFTER) {
-      level, player, position, blockState, blockEntity ->
+      Level level,
+      Player player,
+      BlockPos position,
+      BlockState blockState,
+      BlockEntity blockEntity ->
       if (!(player instanceof ServerPlayer)) {
         return
       }
 
+      ServerPlayer serverPlayer = (ServerPlayer) player
       if (blockState.is(ConventionalBlockTags.ORES)) {
-        award(registrar, player, 5)
+        award(registrar, serverPlayer, ORE_POINTS)
         return
       }
 
-      // accumulate(): persist partial units; every 32 ordinary blocks become one point.
-      int completedSurveys = registrar.accumulate(
-          player, BLOCK_REMAINDER_KEY, 1, 32
+      // accumulate(): retain partial progress. Every 32 ordinary blocks complete one point.
+      int completedPoints = registrar.accumulate(
+          serverPlayer,
+          BLOCK_REMAINDER_KEY,
+          1,
+          BLOCKS_PER_SURVEY_POINT
       )
-      if (completedSurveys > 0) {
-        award(registrar, player, completedSurveys)
+      if (completedPoints > 0) {
+        award(registrar, serverPlayer, completedPoints)
       }
     }
+  }
 
-    // Four-argument listen(): value-returning events require an inactive fallback value.
+  // Value-returning event ----------------------------------------------------------------------
+
+  private void registerSpyglassListener(StarryListScriptRegistrar registrar) {
+    // UseItemCallback returns InteractionResult, so listen(...) also needs an inactive fallback.
+    // PASS observes the interaction without preventing the spyglass's normal behavior.
     registrar.listen("use_spyglass", UseItemCallback.EVENT, InteractionResult.PASS) {
-      player, level, hand ->
+      Player player,
+      Level level,
+      InteractionHand hand ->
       if (!(player instanceof ServerPlayer)
           || !player.getItemInHand(hand).is(Items.SPYGLASS)) {
         return InteractionResult.PASS
       }
 
-      long now = level.gameTime
-      long previous = lastStargazingTick.getOrDefault(player.UUID, Long.MIN_VALUE / 2)
-      if (now - previous >= STARGAZING_COOLDOWN) {
-        // display() reads all effective display preferences. isEnabled() is the board shortcut.
-        def preferences = registrar.display(player)
-        int focusBonus = !preferences.hidden() && registrar.isEnabled(player) ? 3 : 1
-        int oldPoints = registrar.state(player).getInt(POINTS_KEY, 0)
-        int newPoints = award(registrar, player, focusBonus)
-        if (newPoints != oldPoints) {
-          // Only successful automatic scoring starts the transient cooldown. A blacklisted player
-          // therefore produces no score, persistent-state, or cache changes in this example.
-          lastStargazingTick[player.UUID] = now
-        }
+      ServerPlayer serverPlayer = (ServerPlayer) player
+      long currentTick = level.gameTime
+      long previousTick = lastStargazingTick.getOrDefault(
+          serverPlayer.UUID,
+          Long.MIN_VALUE / 2
+      )
+
+      if (currentTick - previousTick < STARGAZING_COOLDOWN_TICKS) {
+        return InteractionResult.PASS
       }
 
-      // PASS observes the interaction without preventing normal spyglass behavior.
-      InteractionResult.PASS
+      // display(): all effective sidebar preferences for this player.
+      StarryListSidebarManager.EffectiveDisplay display = registrar.display(serverPlayer)
+
+      // isEnabled(): convenient check for whether this board is in that effective board list.
+      boolean focusedOnThisBoard = !display.hidden() && registrar.isEnabled(serverPlayer)
+      int points = focusedOnThisBoard ? FOCUSED_STARGAZING_POINTS : STARGAZING_POINTS
+
+      StarryListBoardState playerState = registrar.state(serverPlayer)
+      int pointsBefore = playerState.getInt(POINTS_KEY, 0)
+      int pointsAfter = award(registrar, serverPlayer, points)
+
+      if (pointsAfter != pointsBefore) {
+        // Start the cooldown only after a score actually changes. Blacklisted players therefore
+        // produce no persistent-state or transient-cache changes.
+        lastStargazingTick[serverPlayer.UUID] = currentTick
+      }
+
+      return InteractionResult.PASS
     }
   }
+
+  // Scoring helper -----------------------------------------------------------------------------
 
   private static int award(
       StarryListScriptRegistrar registrar,
       ServerPlayer player,
       int amount
   ) {
-    // addAutomatic() handles saturation and blacklist internally. For an excluded player it returns
-    // the unchanged hidden score, so the mirror below cannot advance accidentally.
-    int newPoints = registrar.addAutomatic(player, amount)
+    StarryListBoardState playerState = registrar.state(player)
+    int previousPoints = playerState.getInt(POINTS_KEY, 0)
 
-    // state(ServerPlayer) is persistent and isolated by this board ID and player UUID. Direct state
-    // storage is generic, so mirror the result already approved by the automatic scoring layer.
-    def playerState = registrar.state(player)
-    if (playerState.getInt(POINTS_KEY, 0) != newPoints) {
-      playerState.putInt(POINTS_KEY, newPoints)
+    // addAutomatic(): add a delta with integer saturation and internal blacklist handling.
+    int updatedPoints = registrar.addAutomatic(player, amount)
+
+    // state(ServerPlayer): board-private persistent data for this player. Mirror only an accepted
+    // score change, so an automatic write rejected by the blacklist cannot alter script state.
+    if (updatedPoints != previousPoints) {
+      playerState.putInt(POINTS_KEY, updatedPoints)
     }
-    newPoints
+
+    return updatedPoints
   }
 }
