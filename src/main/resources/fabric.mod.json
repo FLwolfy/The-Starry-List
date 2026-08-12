@@ -7,11 +7,21 @@
   "authors": [
     "FLwolfy"
   ],
+  "contributors": [
+    {
+      "name": "crackun24 (Original Author)",
+      "contact": {
+        "homepage": "https://github.com/crackun24",
+        "sources": "https://github.com/crackun24/TheStarryMiningList"
+      }
+    }
+  ],
   "contact": {
     "homepage": "https://github.com/FLwolfy/The-Starry-List",
     "sources": "https://github.com/FLwolfy/The-Starry-List"
   },
   "license": "LGPL-3.0",
+  "icon": "assets/the-starry-list/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
