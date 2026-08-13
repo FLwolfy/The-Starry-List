@@ -6,8 +6,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -32,6 +33,7 @@ public final class StarryListState extends SavedData {
       ).apply(instance, StarryListState::new)
   );
 
+  /** Saved-data type used to load and persist StarryList world state. */
   public static final SavedDataType<StarryListState> TYPE = new SavedDataType<>(
       Identifier.fromNamespaceAndPath("the-starry-list", "state"),
       StarryListState::new,
@@ -52,15 +54,18 @@ public final class StarryListState extends SavedData {
       Map<String, String> archivedPlayerNames,
       Map<String, Map<String, Integer>> archivedScores
   ) {
-    profiles.forEach((key, value) -> {
-      try {
-        List<String> canonical = StarryListConfigData.normalizeIds(value.boards());
-        this.profiles.put(UUID.fromString(key), new StarryListDisplayProfile(
-            value.mode(), canonical, value.rotationEnabled(), value.rotationIntervalSeconds()
-        ));
-      } catch (IllegalArgumentException ignored) {
+    for (Map.Entry<String, StarryListDisplayProfile> entry : profiles.entrySet()) {
+      Optional<UUID> playerId = parseUuid(entry.getKey());
+      if (playerId.isEmpty()) {
+        continue;
       }
-    });
+
+      StarryListDisplayProfile profile = entry.getValue();
+      List<String> canonical = StarryListConfigData.normalizeIds(profile.boards());
+      this.profiles.put(playerId.get(), new StarryListDisplayProfile(
+          profile.mode(), canonical, profile.rotationEnabled(), profile.rotationIntervalSeconds()
+      ));
+    }
     boardData.forEach((boardId, players) -> {
       Map<String, net.minecraft.nbt.CompoundTag> copied = new HashMap<>();
       players.forEach((playerId, tag) -> copied.put(playerId, tag.copy()));
@@ -179,15 +184,17 @@ public final class StarryListState extends SavedData {
    */
   public Map<UUID, ArchivedScores> archivedPlayers() {
     Map<UUID, ArchivedScores> result = new HashMap<>();
-    archivedScores.forEach((key, scores) -> {
-      try {
-        UUID playerId = UUID.fromString(key);
-        result.put(playerId, new ArchivedScores(
-            archivedPlayerNames.getOrDefault(key, key), Map.copyOf(scores)
-        ));
-      } catch (IllegalArgumentException ignored) {
+    for (Map.Entry<String, Map<String, Integer>> entry : archivedScores.entrySet()) {
+      Optional<UUID> playerId = parseUuid(entry.getKey());
+      if (playerId.isEmpty()) {
+        continue;
       }
-    });
+
+      result.put(playerId.get(), new ArchivedScores(
+          archivedPlayerNames.getOrDefault(entry.getKey(), entry.getKey()),
+          Map.copyOf(entry.getValue())
+      ));
+    }
     return Map.copyOf(result);
   }
 
@@ -370,6 +377,14 @@ public final class StarryListState extends SavedData {
     return "__inactive__/" + boardId;
   }
 
+  private static Optional<UUID> parseUuid(String value) {
+    try {
+      return Optional.of(UUID.fromString(value));
+    } catch (IllegalArgumentException exception) {
+      return Optional.empty();
+    }
+  }
+
   /**
    * Immutable archived identity and per-board values.
    *
@@ -384,8 +399,7 @@ public final class StarryListState extends SavedData {
    * @param value score value
    * @param displayName last visible owner name
    */
-  public record InactiveScore(int value, String displayName) {
-  }
+  public record InactiveScore(int value, String displayName) {}
 
   /**
    * Counts data permanently removed by orphan pruning.
@@ -393,6 +407,5 @@ public final class StarryListState extends SavedData {
    * @param boardStateNamespaces removed board-state and inactive-objective namespaces
    * @param archivedScores removed blacklisted score values
    */
-  public record PruneResult(int boardStateNamespaces, int archivedScores) {
-  }
+  public record PruneResult(int boardStateNamespaces, int archivedScores) {}
 }

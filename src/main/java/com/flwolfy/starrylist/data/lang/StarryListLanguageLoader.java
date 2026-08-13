@@ -9,6 +9,8 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,37 +40,52 @@ final class StarryListLanguageLoader {
 
   Map<String, StarryListLanguage> load() {
     Map<String, StarryListLanguage> discovered = new TreeMap<>();
+
     for (Path root : roots) {
       Path directory = root.resolve("assets").resolve(StarryListMod.MOD_ID).resolve("lang");
       if (!Files.isDirectory(directory)) {
         continue;
       }
-      try (var paths = Files.list(directory)) {
-        for (Path path : paths.filter(Files::isRegularFile)
-            .filter(StarryListLanguageLoader::isJson)
-            .sorted(java.util.Comparator.comparing(value -> value.getFileName().toString()))
-            .toList()) {
-          String locale = locale(path);
-          StarryListLanguage language = read(path, locale);
-          if (discovered.putIfAbsent(locale, language) != null) {
-            throw new IllegalStateException(
-                "Duplicate bundled StarryList language locale " + locale
-            );
-          }
-        }
-      } catch (IOException exception) {
-        throw new IllegalStateException(
-            "Failed to scan bundled StarryList languages in " + directory,
-            exception
-        );
-      }
+
+      discover(directory, discovered);
     }
+
     if (!discovered.containsKey(DEFAULT_LOCALE)) {
       throw new IllegalStateException(
           "Missing bundled StarryList language " + DEFAULT_LOCALE + ".json"
       );
     }
-    return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(discovered));
+
+    return Collections.unmodifiableMap(new LinkedHashMap<>(discovered));
+  }
+
+  private static void discover(
+      Path directory,
+      Map<String, StarryListLanguage> discovered
+  ) {
+    try (var paths = Files.list(directory)) {
+      List<Path> languageFiles = paths
+          .filter(Files::isRegularFile)
+          .filter(StarryListLanguageLoader::isJson)
+          .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+          .toList();
+
+      for (Path path : languageFiles) {
+        String locale = locale(path);
+        StarryListLanguage language = read(path);
+
+        if (discovered.putIfAbsent(locale, language) != null) {
+          throw new IllegalStateException(
+              "Duplicate bundled StarryList language locale " + locale
+          );
+        }
+      }
+    } catch (IOException exception) {
+      throw new IllegalStateException(
+          "Failed to scan bundled StarryList languages in " + directory,
+          exception
+      );
+    }
   }
 
   private static List<Path> resolveModRoots() {
@@ -93,7 +110,7 @@ final class StarryListLanguageLoader {
     return locale;
   }
 
-  private static StarryListLanguage read(Path path, String locale) {
+  private static StarryListLanguage read(Path path) {
     JsonElement parsed;
     try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
       parsed = GSON.fromJson(reader, JsonElement.class);
@@ -126,6 +143,7 @@ final class StarryListLanguageLoader {
           "Bundled StarryList language is missing non-blank " + NAME_KEY + ": " + path
       );
     }
-    return new StarryListLanguage(locale, name, translations);
+
+    return new StarryListLanguage(name, translations);
   }
 }

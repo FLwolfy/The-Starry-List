@@ -52,6 +52,11 @@ public final class StarryListBlacklistEditorModel {
     }
   }
 
+  /** Publishes values supplied by Cloth Config's save callback. */
+  void publish(List<String> replacement) {
+    publish(null, replacement);
+  }
+
   /**
    * Returns current blacklist expressions.
    *

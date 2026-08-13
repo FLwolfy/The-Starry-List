@@ -38,7 +38,7 @@ public final class StarryListConfigManager {
   private static final StarryListConfigManager INSTANCE = new StarryListConfigManager();
 
   private volatile StarryListConfigData data;
-  private volatile Consumer<StarryListConfigData> applyListener = ignored -> {};
+  private volatile Consumer<StarryListConfigData> applyListener;
 
   private StarryListConfigManager() {
     data = loadAtStartup();
@@ -91,10 +91,10 @@ public final class StarryListConfigManager {
   /**
    * Sets the callback invoked after a replacement configuration becomes active.
    *
-   * @param listener apply callback, or {@code null} to clear it
+   * @param listener apply callback, or {@code null} when no runtime is active
    */
   public void setApplyListener(Consumer<StarryListConfigData> listener) {
-    applyListener = listener == null ? ignored -> {} : listener;
+    applyListener = listener;
   }
 
   /**
@@ -253,14 +253,19 @@ public final class StarryListConfigManager {
     data = replacement;
     applyBoardLoading(replacement);
     StarryListLangManager.getInstance().setLanguage(replacement.general().language());
+    Consumer<StarryListConfigData> listener = applyListener;
+    if (listener == null) {
+      return;
+    }
+
     try {
-      applyListener.accept(replacement);
+      listener.accept(replacement);
     } catch (RuntimeException exception) {
       data = previous;
       applyBoardLoading(previous);
       StarryListLangManager.getInstance().setLanguage(previous.general().language());
       try {
-        applyListener.accept(previous);
+        listener.accept(previous);
       } catch (RuntimeException rollbackFailure) {
         exception.addSuppressed(rollbackFailure);
       }
@@ -482,14 +487,21 @@ public final class StarryListConfigManager {
       if (expression.isBlank()) {
         continue;
       }
-      try {
-        Pattern.compile(expression, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+      if (isValidPattern(expression)) {
         accepted.add(expression);
-      } catch (PatternSyntaxException ignored) {
       }
     }
 
     return List.copyOf(accepted);
+  }
+
+  private static boolean isValidPattern(String expression) {
+    try {
+      Pattern.compile(expression, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+      return true;
+    } catch (PatternSyntaxException exception) {
+      return false;
+    }
   }
 
   private static StarryListConfigData canonicalize(StarryListConfigData value) {

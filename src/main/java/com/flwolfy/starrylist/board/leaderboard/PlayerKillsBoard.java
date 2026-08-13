@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.board.leaderboard;
 
 import com.flwolfy.starrylist.board.base.StarryListBoard;
+import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.minecraft.server.level.ServerPlayer;
@@ -8,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /** Counts other players killed by a player. */
-public final class PlayerKillsBoard extends StarryListBoard {
+public final class PlayerKillsBoard extends StarryListBoard implements StarryListBoardCollector {
 
   @Override
   public String id() {

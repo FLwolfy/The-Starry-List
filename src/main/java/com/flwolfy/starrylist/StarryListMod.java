@@ -16,7 +16,10 @@ import org.slf4j.LoggerFactory;
 /** The common StarryList entry point. All gameplay features remain server-side. */
 public final class StarryListMod implements ModInitializer {
 
+  /** Fabric mod identifier used by resources, persistence, and discovery. */
   public static final String MOD_ID = "the-starry-list";
+
+  /** Shared mod logger. */
   public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
   private static volatile StarryListRuntime runtime;

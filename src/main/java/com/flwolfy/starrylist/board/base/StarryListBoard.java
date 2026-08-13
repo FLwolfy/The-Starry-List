@@ -8,9 +8,9 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Self-contained extension point for one StarryList leaderboard.
  *
- * <p>Concrete boards are discovered recursively in the {@code com.flwolfy.starrylist.board}
- * module tree. Each board owns its identity, localization keys, icon and event-driven statistic
- * registration.</p>
+ * <p>Bundled Java boards are discovered recursively in the
+ * {@code com.flwolfy.starrylist.board} module tree, while Groovy boards are added by the script
+ * manager. Every board owns its identity, localization keys and icon.</p>
  */
 public abstract class StarryListBoard {
 
@@ -59,18 +59,6 @@ public abstract class StarryListBoard {
   protected List<String> loreTranslationKeys() {
     return List.of("starrylist.board." + id() + ".description");
   }
-
-  /**
-   * Registers this board's statistic collectors during common mod initialization.
-   *
-   * <p>Implementations should register Fabric callbacks through
-   * {@link StarryListBoardRegistrar#listen(String, net.fabricmc.fabric.api.event.Event, Object)}
-   * instead of calling Fabric {@code Event.register()} directly. Managed listeners remain
-   * registered once and can be safely suppressed when configuration hot-disables the board.</p>
-   *
-   * @param registrar the services bound to this board
-   */
-  public abstract void register(StarryListBoardRegistrar registrar);
 
   /**
    * Resolves the presentation for a locale, with English as the fallback language.

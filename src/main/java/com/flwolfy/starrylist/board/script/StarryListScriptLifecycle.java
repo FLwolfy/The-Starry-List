@@ -4,5 +4,4 @@ record StarryListScriptLifecycle(
     String boardId,
     Runnable activated,
     Runnable deactivated
-) {
-}
+) {}

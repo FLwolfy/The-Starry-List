@@ -30,8 +30,7 @@ public final class StarryListScriptManager {
   private Set<String> previewLocales = Set.of();
   private boolean previewed;
 
-  private StarryListScriptManager() {
-  }
+  private StarryListScriptManager() {}
 
   /**
    * Returns the process-wide script catalog manager.
@@ -331,75 +330,14 @@ public final class StarryListScriptManager {
     this.activeBoardIds = replacement;
   }
 
-  private StarryListScriptSnapshot prepare(
-      StarryListBoardRegistry registry,
-      boolean validateIcons
-  ) {
-    StarryListScriptSnapshot staged = compiler.compile(validateIcons);
-    try {
-      registry.validateScriptBoards(staged.boards());
-      eventHub.validate(staged.subscriptions());
-      lifecycleHub.validate(staged.lifecycles());
-      return staged;
-    } catch (RuntimeException exception) {
-      closeQuietly(staged);
-      throw exception;
-    }
-  }
-
-  private List<ScriptInspection> inspectScripts(
-      StarryListBoardRegistry registry,
-      boolean validateIcons
-  ) {
-    List<StarryListScriptCompiler.Inspection> staged = compiler.inspect(validateIcons);
-    List<MutableInspection> values = new ArrayList<>();
-    try {
-      for (StarryListScriptCompiler.Inspection inspection : staged) {
-        if (inspection.snapshot() == null) {
-          values.add(new MutableInspection(
-              inspection.sourceFile(), null, Map.of(), inspection.error()
-          ));
-          continue;
-        }
-
-        StarryListScriptBoard board = inspection.snapshot().boards().getFirst();
-        String error = null;
-        try {
-          registry.validateScriptBoards(List.of(board));
-          eventHub.validate(inspection.snapshot().subscriptions());
-          lifecycleHub.validate(inspection.snapshot().lifecycles());
-        } catch (RuntimeException exception) {
-          error = rootMessage(exception);
-        }
-        values.add(new MutableInspection(
-            inspection.sourceFile(), board, titles(inspection.snapshot(), board.id()), error
-        ));
-      }
-
-      markDuplicates(values, StarryListBoard::id, "Duplicate board ID: ");
-      markDuplicates(values, StarryListBoard::objectiveName, "Duplicate board objective: ");
-      markDuplicateOrders(values);
-      return values.stream().map(value -> new ScriptInspection(
-          value.sourceFile,
-          value.board == null ? null : value.board.id(),
-          value.board == null ? null : value.board.objectiveName(),
-          value.titles,
-          value.error == null,
-          value.error == null ? "" : value.error
-      )).toList();
-    } finally {
-      staged.forEach(value -> closeQuietly(value.snapshot()));
-    }
-  }
-
   private PartialPreparation preparePartial(
       StarryListBoardRegistry registry,
       boolean validateIcons
   ) {
-    List<StarryListScriptCompiler.Inspection> compiled = compiler.inspect(validateIcons);
+    StarryListScriptCompiler.InspectionBatch batch = compiler.inspect(validateIcons);
     List<StarryListScriptSnapshot> accepted = new ArrayList<>();
     List<ScriptInspection> results = new ArrayList<>();
-    for (StarryListScriptCompiler.Inspection inspection : compiled) {
+    for (StarryListScriptCompiler.Inspection inspection : batch.inspections()) {
       StarryListScriptSnapshot candidate = inspection.snapshot();
       if (candidate == null) {
         results.add(new ScriptInspection(
@@ -444,7 +382,7 @@ public final class StarryListScriptManager {
     List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
     List<StarryListScriptLifecycle> lifecycles = new ArrayList<>();
     Map<String, Map<String, String>> translations = new HashMap<>();
-    Set<String> locales = new LinkedHashSet<>();
+    Set<String> locales = new LinkedHashSet<>(batch.locales());
     for (StarryListScriptSnapshot snapshot : accepted) {
       loaders.addAll(snapshot.classLoaders());
       boards.addAll(snapshot.boards());
@@ -453,10 +391,7 @@ public final class StarryListScriptManager {
       snapshot.translations().forEach((locale, values) ->
           translations.computeIfAbsent(locale, ignored -> new HashMap<>()).putAll(values)
       );
-      locales.addAll(snapshot.locales());
     }
-
-    compiled.stream().findFirst().ifPresent(value -> locales.addAll(value.locales()));
 
     return new PartialPreparation(
         new StarryListScriptSnapshot(
@@ -464,34 +399,6 @@ public final class StarryListScriptManager {
         ),
         List.copyOf(results)
     );
-  }
-
-  private static void markDuplicates(
-      List<MutableInspection> inspections,
-      java.util.function.Function<StarryListBoard, String> key,
-      String message
-  ) {
-    Map<String, Long> counts = inspections.stream()
-        .filter(value -> value.board != null)
-        .collect(java.util.stream.Collectors.groupingBy(
-            value -> key.apply(value.board),
-            java.util.stream.Collectors.counting()
-        ));
-    inspections.stream().filter(value -> value.board != null)
-        .filter(value -> counts.get(key.apply(value.board)) > 1)
-        .forEach(value -> value.error = message + key.apply(value.board));
-  }
-
-  private static void markDuplicateOrders(List<MutableInspection> inspections) {
-    Map<Integer, Long> counts = inspections.stream()
-        .filter(value -> value.board != null)
-        .collect(java.util.stream.Collectors.groupingBy(
-            value -> value.board.order(),
-            java.util.stream.Collectors.counting()
-        ));
-    inspections.stream().filter(value -> value.board != null)
-        .filter(value -> counts.get(value.board.order()) > 1)
-        .forEach(value -> value.error = "Duplicate board order: " + value.board.order());
   }
 
   private static Map<String, String> titles(
@@ -581,8 +488,7 @@ public final class StarryListScriptManager {
    * @param success whether the operation completed
    * @param message concise human-readable result
    */
-  public record OperationResult(boolean success, String message) {
-  }
+  public record OperationResult(boolean success, String message) {}
 
   /**
    * Active script board metadata shown by the administrator list command.
@@ -599,8 +505,7 @@ public final class StarryListScriptManager {
       String objective,
       int subscriptions,
       int activeSubscriptions
-  ) {
-  }
+  ) {}
 
   /**
    * Per-file result produced by the latest validation or refresh operation.
@@ -631,28 +536,8 @@ public final class StarryListScriptManager {
     }
   }
 
-  private static final class MutableInspection {
-    private final String sourceFile;
-    private final StarryListScriptBoard board;
-    private final Map<String, String> titles;
-    private String error;
-
-    private MutableInspection(
-        String sourceFile,
-        StarryListScriptBoard board,
-        Map<String, String> titles,
-        String error
-    ) {
-      this.sourceFile = sourceFile;
-      this.board = board;
-      this.titles = titles;
-      this.error = error;
-    }
-  }
-
   private record PartialPreparation(
       StarryListScriptSnapshot snapshot,
       List<ScriptInspection> inspections
-  ) {
-  }
+  ) {}
 }

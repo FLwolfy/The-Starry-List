@@ -10,7 +10,11 @@ import me.shedaniel.math.Point;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
-/** Adds reusable Cloth Config tooltip behavior to a configuration entry. */
+/**
+ * Adds reusable Cloth Config tooltip behavior to a configuration entry.
+ *
+ * @param <T> configuration value type
+ */
 public abstract class StarryListTooltipEntry<T> extends AbstractConfigListEntry<T> {
 
   private final Supplier<Optional<Component[]>> tooltipSupplier;

@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -21,7 +22,7 @@ final class StarryListScriptLanguageLoader {
 
   private static final Gson GSON = new Gson();
   private static final Pattern LOCALE = Pattern.compile("[a-z0-9][a-z0-9_-]*");
-  private static final java.util.List<String> EXAMPLES = java.util.List.of("en_us", "zh_cn");
+  private static final List<String> EXAMPLES = List.of("en_us", "zh_cn");
 
   private final Path directory;
 
@@ -31,10 +32,6 @@ final class StarryListScriptLanguageLoader {
 
   StarryListScriptLanguageLoader(Path directory) {
     this.directory = directory;
-  }
-
-  Path directory() {
-    return directory;
   }
 
   StarryListScriptLanguageCatalog load() {

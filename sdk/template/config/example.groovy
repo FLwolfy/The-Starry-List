@@ -70,11 +70,27 @@ final class StarlightExpeditionBoard extends StarryListScriptBoard {
 
   @Override
   Map translations() {
+    // Recommended: keep player-facing text in config/lang/<locale>.json files.
     return translatableText(
       "starrylist.script.starlight_expedition.title",
       "starrylist.script.starlight_expedition.lore.0",
       "starrylist.script.starlight_expedition.lore.1"
     )
+
+    // Alternatively, replace the return statement above with this inline translation map.
+    // This older text(...) form remains fully supported and needs no config/lang files.
+    // return [
+    //   en_us: text(
+    //     "Starlight Expedition",
+    //     "Mine ores, survey blocks, and observe the sky with a spyglass.",
+    //     "Automatic scoring handles blacklisted players internally."
+    //   ),
+    //   zh_cn: text(
+    //     "星光远征榜",
+    //     "挖掘矿石、勘探方块，并用望远镜观测天空来收集星尘。",
+    //     "自动计分会在内部处理黑名单玩家。"
+    //   )
+    // ]
   }
 
   // Registration entry point -------------------------------------------------------------------

@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.board.leaderboard;
 
 import com.flwolfy.starrylist.board.base.StarryListBoard;
+import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,7 @@ import net.minecraft.world.level.gameevent.GameEventListener;
 import net.minecraft.world.phys.Vec3;
 
 /** Counts successful player block placements from vanilla block-place game events. */
-public final class PlacingBoard extends StarryListBoard {
+public final class PlacingBoard extends StarryListBoard implements StarryListBoardCollector {
 
   private final Map<UUID, ListenerBinding> listeners = new HashMap<>();
 

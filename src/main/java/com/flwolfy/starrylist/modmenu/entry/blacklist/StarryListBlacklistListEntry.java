@@ -40,7 +40,7 @@ public final class StarryListBlacklistListEntry extends AbstractTextFieldListLis
         () -> Optional.of(new Component[]{Component.translatable(
             "starrylist.config.blacklist.patterns.tooltip"
         )}),
-        ignored -> {},
+        model::publish,
         () -> StarryListConfigData.DEFAULT.blacklist().playerNamePatterns(),
         resetButtonKey,
         false,

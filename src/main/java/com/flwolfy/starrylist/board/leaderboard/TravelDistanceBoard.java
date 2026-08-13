@@ -1,6 +1,7 @@
 package com.flwolfy.starrylist.board.leaderboard;
 
 import com.flwolfy.starrylist.board.base.StarryListBoard;
+import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /** Counts whole blocks from vanilla-confirmed continuous movement statistics. */
-public final class TravelDistanceBoard extends StarryListBoard {
+public final class TravelDistanceBoard extends StarryListBoard implements StarryListBoardCollector {
 
   private static final String REMAINDER_KEY = "centimeterRemainder";
   private static final List<Identifier> MOVEMENT_STATS = List.of(

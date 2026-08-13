@@ -102,8 +102,7 @@ final class StarryListScriptEventHub {
    * @param identity stable board and subscription identity
    * @param active whether a Groovy delegate is currently active
    */
-  record SubscriptionStatus(String identity, boolean active) {
-  }
+  record SubscriptionStatus(String identity, boolean active) {}
 
   private static final class Slot implements InvocationHandler {
 

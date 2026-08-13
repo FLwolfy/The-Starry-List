@@ -36,45 +36,7 @@ final class StarryListScriptCompiler {
     return directory;
   }
 
-  StarryListScriptSnapshot compile(boolean validateIcons) {
-    createDirectory();
-    StarryListScriptLanguageCatalog languageCatalog = languageLoader.load();
-    GroovyClassLoader loader = newLoader();
-
-    try {
-      List<Path> sources = sources();
-      List<StarryListScriptBoard> boards = new ArrayList<>();
-      for (Path source : sources) {
-        boards.add(compileOne(loader, source, validateIcons, languageCatalog));
-      }
-
-      List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
-      List<StarryListScriptLifecycle> lifecycles = new ArrayList<>();
-      Map<String, Map<String, String>> translations = new HashMap<>();
-      for (StarryListScriptBoard board : boards) {
-        addTranslations(board, translations);
-        StarryListScriptRegistrar registrar = new StarryListScriptRegistrar(board);
-        board.subscribe(registrar);
-        subscriptions.addAll(registrar.subscriptions());
-        lifecycles.addAll(registrar.lifecycles());
-      }
-
-      return new StarryListScriptSnapshot(
-          loader, boards, subscriptions, lifecycles, translations, languageCatalog.locales()
-      );
-    } catch (Throwable throwable) {
-      try {
-        loader.clearCache();
-        loader.close();
-      } catch (IOException closeFailure) {
-        throwable.addSuppressed(closeFailure);
-      }
-
-      throw new IllegalStateException("Failed to compile StarryList scripts", throwable);
-    }
-  }
-
-  List<Inspection> inspect(boolean validateIcons) {
+  InspectionBatch inspect(boolean validateIcons) {
     createDirectory();
     StarryListScriptLanguageCatalog languageCatalog = languageLoader.load();
     List<Inspection> result = new ArrayList<>();
@@ -96,17 +58,16 @@ final class StarryListScriptCompiler {
               registrar.subscriptions(),
               registrar.lifecycles(),
               translations,
-              languageCatalog.locales()
+              Set.of()
           );
           result.add(new Inspection(
-              source.getFileName().toString(), snapshot, languageCatalog.locales(), null
+              source.getFileName().toString(), snapshot, null
           ));
         } catch (Throwable throwable) {
           close(loader, throwable);
           result.add(new Inspection(
               source.getFileName().toString(),
               null,
-              languageCatalog.locales(),
               rootMessage(throwable)
           ));
         }
@@ -115,7 +76,7 @@ final class StarryListScriptCompiler {
       throw new IllegalStateException("Failed to inspect StarryList scripts", exception);
     }
 
-    return List.copyOf(result);
+    return new InspectionBatch(List.copyOf(result), languageCatalog.locales());
   }
 
   private static GroovyClassLoader newLoader() {
@@ -293,8 +254,8 @@ final class StarryListScriptCompiler {
   record Inspection(
       String sourceFile,
       StarryListScriptSnapshot snapshot,
-      Set<String> locales,
       String error
-  ) {
-  }
+  ) {}
+
+  record InspectionBatch(List<Inspection> inspections, Set<String> locales) {}
 }

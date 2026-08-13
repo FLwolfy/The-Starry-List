@@ -1,12 +1,15 @@
 package com.flwolfy.starrylist.data.lang;
 
 import com.flwolfy.starrylist.StarryListMod;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import net.minecraft.network.chat.Component;
 
 /** Loads bundled translations for server-side literal messages. */
@@ -22,9 +25,7 @@ public final class StarryListLangManager {
   }
 
   StarryListLangManager(Map<String, StarryListLanguage> languages) {
-    this.languages = java.util.Collections.unmodifiableMap(
-        new java.util.LinkedHashMap<>(languages)
-    );
+    this.languages = Collections.unmodifiableMap(new LinkedHashMap<>(languages));
   }
 
   /**
@@ -43,7 +44,7 @@ public final class StarryListLangManager {
    */
   public void setLanguage(String language) {
     String normalized = normalize(language);
-    this.language = availableLocales().contains(normalized)
+    this.language = isAvailable(normalized)
         ? normalized
         : StarryListLanguageLoader.DEFAULT_LOCALE;
   }
@@ -69,7 +70,8 @@ public final class StarryListLangManager {
    */
   public Component textFor(String locale, String key, Object... arguments) {
     String normalized = normalize(locale);
-    String selected = availableLocales().contains(normalized) ? normalized : language;
+    String selected = isAvailable(normalized) ? normalized : language;
+
     return render(selected, key, arguments);
   }
 
@@ -77,17 +79,19 @@ public final class StarryListLangManager {
    * Atomically replaces translations supplied by the active Groovy boards.
    *
    * @param translations locale maps containing script translation keys
+   * @param locales locales discovered for the active script catalog
    */
   public void replaceScriptTranslations(
       Map<String, Map<String, String>> translations,
       Set<String> locales
   ) {
     Map<String, Map<String, String>> copied = translations.entrySet().stream().collect(
-        java.util.stream.Collectors.toUnmodifiableMap(
+        Collectors.toUnmodifiableMap(
             Map.Entry::getKey,
             entry -> Map.copyOf(entry.getValue())
         )
     );
+
     scriptCatalog = new ScriptCatalog(copied, Set.copyOf(locales));
     warnedMissingKeys.clear();
   }
@@ -100,7 +104,8 @@ public final class StarryListLangManager {
   public Set<String> availableLocales() {
     Set<String> result = new TreeSet<>(languages.keySet());
     result.addAll(scriptCatalog.locales());
-    return java.util.Collections.unmodifiableSet(new LinkedHashSet<>(result));
+
+    return Collections.unmodifiableSet(new LinkedHashSet<>(result));
   }
 
   /**
@@ -109,7 +114,7 @@ public final class StarryListLangManager {
    * @return immutable core locale keys in stable lexical order
    */
   public Set<String> coreLocales() {
-    return java.util.Collections.unmodifiableSet(new LinkedHashSet<>(languages.keySet()));
+    return languages.keySet();
   }
 
   /**
@@ -125,31 +130,9 @@ public final class StarryListLangManager {
   }
 
   private Component render(String locale, String key, Object... arguments) {
-    Map<String, Map<String, String>> scriptLanguages = scriptCatalog.translations();
-    String pattern = scriptLanguages.getOrDefault(locale, Map.of()).get(key);
-    if (pattern == null) {
-      pattern = scriptLanguages.getOrDefault(language, Map.of()).get(key);
-    }
-    if (pattern == null) {
-      pattern = scriptLanguages.getOrDefault(
-          StarryListLanguageLoader.DEFAULT_LOCALE, Map.of()).get(key);
-    }
-    Map<String, String> selected = translations(locale);
-    if (pattern == null) {
-      pattern = selected.get(key);
-      if (pattern == null) {
-        warnMissingCoreTranslation(locale, key);
-      }
-    }
-    if (pattern == null && !language.equals(locale)) {
-      pattern = translations(language).get(key);
-      if (pattern == null) {
-        warnMissingCoreTranslation(language, key);
-      }
-    }
-    if (pattern == null) {
-      pattern = translations(StarryListLanguageLoader.DEFAULT_LOCALE).get(key);
-    }
+    String pattern = resolveScriptPattern(locale, key);
+    pattern = pattern == null ? resolveCorePattern(locale, key) : pattern;
+
     if (pattern == null) {
       if (warnedMissingKeys.add("all\0" + locale + '\0' + key)) {
         StarryListMod.LOGGER.warn("Missing language key: {}", key);
@@ -165,13 +148,52 @@ public final class StarryListLangManager {
     }
   }
 
+  private String resolveScriptPattern(String locale, String key) {
+    Map<String, Map<String, String>> translations = scriptCatalog.translations();
+    String pattern = translations.getOrDefault(locale, Map.of()).get(key);
+
+    if (pattern == null) {
+      pattern = translations.getOrDefault(language, Map.of()).get(key);
+    }
+    if (pattern == null) {
+      pattern = translations.getOrDefault(
+          StarryListLanguageLoader.DEFAULT_LOCALE,
+          Map.of()
+      ).get(key);
+    }
+
+    return pattern;
+  }
+
+  private String resolveCorePattern(String locale, String key) {
+    String pattern = translation(locale, key);
+    if (pattern != null) {
+      return pattern;
+    }
+    warnMissingCoreTranslation(locale, key);
+
+    if (!language.equals(locale)) {
+      pattern = translation(language, key);
+      if (pattern != null) {
+        return pattern;
+      }
+      warnMissingCoreTranslation(language, key);
+    }
+
+    return translation(StarryListLanguageLoader.DEFAULT_LOCALE, key);
+  }
+
   private static String normalize(String locale) {
     return locale == null ? "" : locale.trim().toLowerCase(Locale.ROOT);
   }
 
-  private Map<String, String> translations(String locale) {
+  private String translation(String locale, String key) {
     StarryListLanguage bundled = languages.get(locale);
-    return bundled == null ? Map.of() : bundled.translations();
+    return bundled == null ? null : bundled.translations().get(key);
+  }
+
+  private boolean isAvailable(String locale) {
+    return languages.containsKey(locale) || scriptCatalog.locales().contains(locale);
   }
 
   private void warnMissingCoreTranslation(String locale, String key) {
@@ -189,8 +211,7 @@ public final class StarryListLangManager {
   private record ScriptCatalog(
       Map<String, Map<String, String>> translations,
       Set<String> locales
-  ) {
-  }
+  ) {}
 
   private static final class Holder {
     private static final StarryListLangManager INSTANCE = new StarryListLangManager();

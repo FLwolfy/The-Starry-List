@@ -2,7 +2,6 @@ package com.flwolfy.starrylist.board.script;
 
 import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.board.base.StarryListBoardPresentation;
-import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
 import java.util.List;
 import java.util.Map;
 
@@ -62,10 +61,6 @@ public abstract class StarryListScriptBoard extends StarryListBoard {
    */
   public final String sourceFile() {
     return sourceFile;
-  }
-
-  @Override
-  public final void register(StarryListBoardRegistrar registrar) {
   }
 
   @Override

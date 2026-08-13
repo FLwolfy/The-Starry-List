@@ -20,8 +20,8 @@ public final class StarryListBoardRegistrar {
   private final StarryListBoard board;
   private final Set<String> subscriptionKeys = new LinkedHashSet<>();
   private volatile boolean active = true;
-  private Runnable activated = () -> {};
-  private Runnable deactivated = () -> {};
+  private Runnable activated;
+  private Runnable deactivated;
   private boolean lifecycleRegistered;
 
   StarryListBoardRegistrar(StarryListBoard board) {
@@ -187,6 +187,10 @@ public final class StarryListBoardRegistrar {
     }
 
     active = replacement;
+    if (!lifecycleRegistered) {
+      return;
+    }
+
     try {
       (replacement ? activated : deactivated).run();
     } catch (RuntimeException exception) {

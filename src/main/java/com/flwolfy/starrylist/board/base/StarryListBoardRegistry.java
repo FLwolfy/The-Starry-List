@@ -96,7 +96,7 @@ public final class StarryListBoardRegistry {
 
     for (StarryListBoard board : builtInBoards) {
       try {
-        board.register(registrars.get(board.id()));
+        ((StarryListBoardCollector) board).register(registrars.get(board.id()));
       } catch (RuntimeException | LinkageError exception) {
         throw new IllegalStateException("Failed to register board " + board.id()
             + " (" + board.getClass().getName() + ")", exception);
@@ -300,6 +300,11 @@ public final class StarryListBoardRegistry {
             || Modifier.isAbstract(candidate.getModifiers())) {
           continue;
         }
+        if (!StarryListBoardCollector.class.isAssignableFrom(candidate)) {
+          throw new IllegalStateException(
+              "Bundled Java board must implement StarryListBoardCollector: " + className
+          );
+        }
         if (!Modifier.isPublic(candidate.getModifiers())) {
           throw new IllegalStateException("Concrete board must be public: " + className);
         }
@@ -381,7 +386,7 @@ public final class StarryListBoardRegistry {
     classNames.add(resourceName.substring(0, resourceName.length() - 6).replace('/', '.'));
   }
 
-  private static void validate(List<StarryListBoard> boards) {
+  private static void validate(List<? extends StarryListBoard> boards) {
     Set<String> ids = new LinkedHashSet<>();
     Set<String> objectives = new LinkedHashSet<>();
     Set<Integer> orders = new LinkedHashSet<>();
@@ -425,6 +430,5 @@ public final class StarryListBoardRegistry {
     }
   }
 
-  private record Catalog(List<StarryListBoard> boards, Map<String, StarryListBoard> byId) {
-  }
+  private record Catalog(List<StarryListBoard> boards, Map<String, StarryListBoard> byId) {}
 }

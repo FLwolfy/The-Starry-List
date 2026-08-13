@@ -46,13 +46,21 @@ public final class StarryListIntegerEntry extends StarryListTooltipEntry<Integer
     this.maximum = maximum;
     original = (Integer) context.field().value();
     defaultValue = (Integer) context.field().defaultValue();
+
+    int resetWidth = Minecraft.getInstance().font.width(context.resetText()) + 6;
     textField = new EditBox(
-        Minecraft.getInstance().font, 0, 0, 0, 20, context.label()
+        Minecraft.getInstance().font,
+        0,
+        0,
+        StarryListControlLayout.valueWidth(resetWidth),
+        20,
+        context.label()
     );
     textField.setValue(Integer.toString(original));
     resetButton = Button.builder(
         context.resetText(), ignored -> textField.setValue(Integer.toString(defaultValue))
-    ).bounds(0, 0, Minecraft.getInstance().font.width(context.resetText()) + 6, 20).build();
+    ).bounds(0, 0, resetWidth, 20).build();
+
     observedRevision = context.model().revision();
     observedText = textField.getValue();
   }

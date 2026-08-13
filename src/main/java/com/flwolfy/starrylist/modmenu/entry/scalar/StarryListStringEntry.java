@@ -36,13 +36,21 @@ public final class StarryListStringEntry extends StarryListTooltipEntry<String>
     this.context = context;
     original = (String) context.field().value();
     defaultValue = (String) context.field().defaultValue();
+
+    int resetWidth = Minecraft.getInstance().font.width(context.resetText()) + 6;
     textField = new EditBox(
-        Minecraft.getInstance().font, 0, 0, 0, 20, context.label()
+        Minecraft.getInstance().font,
+        0,
+        0,
+        StarryListControlLayout.valueWidth(resetWidth),
+        20,
+        context.label()
     );
     textField.setValue(original);
     resetButton = Button.builder(context.resetText(), ignored -> textField.setValue(defaultValue))
-        .bounds(0, 0, Minecraft.getInstance().font.width(context.resetText()) + 6, 20)
+        .bounds(0, 0, resetWidth, 20)
         .build();
+
     observedRevision = context.model().revision();
     observedText = original;
   }

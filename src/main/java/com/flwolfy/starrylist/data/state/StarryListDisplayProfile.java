@@ -23,8 +23,13 @@ public record StarryListDisplayProfile(
 
   /** Supported relationships between a player profile and server defaults. */
   public enum Mode {
+    /** Inherit the server's current display configuration. */
     DEFAULT,
+
+    /** Use the player's saved board selection and rotation settings. */
     CUSTOM,
+
+    /** Hide the sidebar while retaining the player's saved preferences. */
     HIDDEN
   }
 
