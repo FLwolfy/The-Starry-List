@@ -1,6 +1,6 @@
 # The-Starry-List 模组使用文档
 
-**The-Starry-List** 是面向 Minecraft 26.1+ Fabric 的可扩展服务端排行榜模组，提供六个内置榜单、玩家独立侧边栏设置、管理员工具、黑名单和可热重载的 Groovy 榜单。
+**The-Starry-List** 是面向 Minecraft Fabric 的可扩展服务端排行榜模组，提供六个内置榜单、玩家独立侧边栏设置、管理员工具、黑名单和可热重载的 Groovy 榜单。
 
 See the English document [here](./README.md).
 
@@ -287,19 +287,15 @@ Groovy 文件是完全受信任的服务端代码，不是沙箱配置。它可�
 
 ## 兼容性与部署
 
-| 类型 | 支持情况 |
-|---|---|
-| 模组加载器 | Fabric Loader |
-| Minecraft | 26.1+ |
-| 独立服务器 | 支持；只需安装在服务端 |
-| 单人游戏 / LAN | 支持；安装在主机客户端 |
-| 进入独立服务器的玩家客户端 | 无需安装 |
-| 客户端配置界面 | 可选，需 Cloth Config 与 ModMenu |
-| 语言 | 从打包资源动态发现核心 locale，并支持动态脚本 locale |
-
-本项目以支持 Minecraft 26.1 及后续版本为目标。请下载与你所用 Minecraft 版本对应的模组构建；不保证同一个 JAR 能跨游戏版本通用。
-
-Minecraft 26.1 构建需要 Java 25+、Fabric Loader 0.19.3 或兼容版本，以及 Fabric API 0.145.1+26.1 或兼容版本。Cloth Config 与 ModMenu 均为可选依赖，只用于提供本地的图形化配置界面。
+| 类型                       | 支持情况                                             |
+|----------------------------|------------------------------------------------------|
+| 模组加载器                 | Fabric Loader                                        |
+| Minecraft                  | 26.1+                                                |
+| 独立服务器                 | ✅ 只需安装在服务端                                  |
+| 单人游戏 / LAN             | ✅ 安装在主机客户端                                  |
+| 进入独立服务器的玩家客户端 | 无需安装                                             |
+| 客户端配置界面             | 可选，需 Cloth Config 与 ModMenu                     |
+| 语言                       | 从打包资源动态发现核心 locale，并支持动态脚本 locale |
 
 ---
 
