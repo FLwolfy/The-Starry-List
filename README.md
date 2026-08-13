@@ -1,6 +1,6 @@
 # The-Starry-List Mod Documentation
 
-**The-Starry-List** is an extensible server-side leaderboard mod for Minecraft 26.2.x Fabric. It provides six built-in boards, per-player sidebar settings, administrator tools, blacklist support, and hot-reloadable Groovy boards.
+**The-Starry-List** is an extensible server-side leaderboard mod for Minecraft Fabric. It provides six built-in boards, per-player sidebar settings, administrator tools, blacklist support, and hot-reloadable Groovy boards.
 
 简体中文文档见[这里](./README.cn.md)。
 
@@ -287,19 +287,15 @@ The previous valid configuration and script catalog remain active. Check the ser
 
 ## Compatibility & deployment
 
-| Type | Support |
-|---|---|
-| Mod loader | Fabric Loader |
-| Minecraft | 26.2.x |
-| Dedicated server | Supported; install on the server only |
-| Single-player / LAN | Supported; install on the host client |
-| Player client on a dedicated server | Not required |
-| Client configuration UI | Optional with Cloth Config and ModMenu |
-| Languages | Core locales discovered from bundled resources, plus dynamic script locales |
-
-This build targets the Minecraft 26.2.x release line. Use the mod build published for your Minecraft release line; a single JAR is not guaranteed to work across game versions.
-
-The Minecraft 26.2.x build requires Java 25+, Fabric Loader 0.19.3 or a compatible version, and Fabric API 0.157.0+26.2 or a compatible version. Cloth Config and ModMenu are optional and only provide the local graphical configuration screen.
+| Type                                | Support                                                                     |
+|-------------------------------------|-----------------------------------------------------------------------------|
+| Mod loader                          | Fabric Loader                                                               |
+| Minecraft                           | 26.1+                                                                       |
+| Dedicated server                    | ✅ install on the server only                                               |
+| Single-player / LAN                 | ✅ install on the host client                                               |
+| Player client on a dedicated server | Not required                                                                |
+| Client configuration UI             | Optional with Cloth Config and ModMenu                                      |
+| Languages                           | Core locales discovered from bundled resources, plus dynamic script locales |
 
 ---
 
