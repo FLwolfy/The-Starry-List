@@ -10,10 +10,11 @@
 1. 安装 JDK 25。
 2. 用支持 Gradle 和 Groovy 的编辑器将本目录作为 Gradle 工程打开。
 3. 等待首次 Gradle 同步下载 Minecraft、Fabric API、Groovy 和 Gradle 依赖。
-4. 编辑或添加 `config/*.groovy` 文件。
+4. 编辑或添加 `config/*.groovy`，并在 `config/lang/*.json` 中维护扁平翻译条目。
 5. 运行 `./gradlew compileGroovy`；Windows 使用 `gradlew.bat compileGroovy`，检查语法和
    import。
-6. 将完成的脚本复制到服务器的 `config/starrylist/boards/`，再执行
+6. 将完成的脚本复制到 `config/starrylist/boards/`，语言文件复制到
+   `config/starrylist/lang/`，再执行
    `/starryadmin scripts validate` 和 `/starryadmin scripts reload`。
 
 新导入的 Groovy 榜单默认停用。检查脚本后，在配置界面打开它的“开启/关闭”，或把其 ID
@@ -25,6 +26,13 @@
 
 SDK 内置的本地 Maven 仓库会自动关联 StarryList 主程序与源码。完成 Gradle 同步后，IDE
 无需手动附加 sources JAR 即可显示方法注释并跳转到源码。
+
+## 脚本翻译
+
+在榜单的 `translations()` 中使用 `translatableText(titleKey, loreKeys...)`。声明的每个 key
+都必须存在于 `config/lang/en_us.json`；其他语言可以省略 key，服务端会回退英文并记录警告。
+locale 由文件名动态发现，外部文件仅影响 Groovy 榜单标题和 lore。通过 `text()` 编写的
+字面量 map 仍然有效。
 
 ## 内置示例
 

@@ -1,7 +1,6 @@
 package com.flwolfy.starrylist.data.config;
 
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
-import com.flwolfy.starrylist.data.lang.StarryListLang;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -31,7 +30,7 @@ public record StarryListConfigData(
    * @param language server message language
    * @param adminPermissionLevel required vanilla administrator permission level
    */
-  public record General(StarryListLang language, int adminPermissionLevel) {}
+  public record General(String language, int adminPermissionLevel) {}
 
   /**
    * Default sidebar settings inherited by players without a custom display profile.
@@ -97,7 +96,7 @@ public record StarryListConfigData(
   }
 
   public static final StarryListConfigData DEFAULT = new StarryListConfigData(
-      new General(StarryListLang.ENGLISH, 2),
+      new General("en_us", 2),
       new Display(
           false,
           true,
@@ -115,7 +114,8 @@ public record StarryListConfigData(
    */
   public List<String> validate() {
     List<String> invalid = new ArrayList<>();
-    if (general == null || general.language() == null) {
+    if (general == null || general.language() == null
+        || !general.language().matches("[a-z0-9][a-z0-9_-]*")) {
       invalid.add("general.language");
     }
 

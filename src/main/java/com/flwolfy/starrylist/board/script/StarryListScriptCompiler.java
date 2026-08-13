@@ -24,10 +24,13 @@ import org.codehaus.groovy.control.CompilerConfiguration;
 final class StarryListScriptCompiler {
 
   private static final String ENGLISH = "en_us";
+  private static final String LOCALE_PATTERN = "[a-z0-9][a-z0-9_-]*";
 
   private final Path directory = FabricLoader.getInstance().getConfigDir()
       .resolve("starrylist")
       .resolve("boards");
+  private final StarryListScriptLanguageLoader languageLoader =
+      new StarryListScriptLanguageLoader();
 
   Path directory() {
     return directory;
@@ -35,13 +38,14 @@ final class StarryListScriptCompiler {
 
   StarryListScriptSnapshot compile(boolean validateIcons) {
     createDirectory();
+    StarryListScriptLanguageCatalog languageCatalog = languageLoader.load();
     GroovyClassLoader loader = newLoader();
 
     try {
       List<Path> sources = sources();
       List<StarryListScriptBoard> boards = new ArrayList<>();
       for (Path source : sources) {
-        boards.add(compileOne(loader, source, validateIcons));
+        boards.add(compileOne(loader, source, validateIcons, languageCatalog));
       }
 
       List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
@@ -56,7 +60,7 @@ final class StarryListScriptCompiler {
       }
 
       return new StarryListScriptSnapshot(
-          loader, boards, subscriptions, lifecycles, translations
+          loader, boards, subscriptions, lifecycles, translations, languageCatalog.locales()
       );
     } catch (Throwable throwable) {
       try {
@@ -72,13 +76,16 @@ final class StarryListScriptCompiler {
 
   List<Inspection> inspect(boolean validateIcons) {
     createDirectory();
+    StarryListScriptLanguageCatalog languageCatalog = languageLoader.load();
     List<Inspection> result = new ArrayList<>();
     try {
       for (Path source : sources()) {
         GroovyClassLoader loader = newLoader();
         StarryListScriptSnapshot snapshot = null;
         try {
-          StarryListScriptBoard board = compileOne(loader, source, validateIcons);
+          StarryListScriptBoard board = compileOne(
+              loader, source, validateIcons, languageCatalog
+          );
           Map<String, Map<String, String>> translations = new HashMap<>();
           addTranslations(board, translations);
           StarryListScriptRegistrar registrar = new StarryListScriptRegistrar(board);
@@ -88,14 +95,18 @@ final class StarryListScriptCompiler {
               List.of(board),
               registrar.subscriptions(),
               registrar.lifecycles(),
-              translations
+              translations,
+              languageCatalog.locales()
           );
-          result.add(new Inspection(source.getFileName().toString(), snapshot, null));
+          result.add(new Inspection(
+              source.getFileName().toString(), snapshot, languageCatalog.locales(), null
+          ));
         } catch (Throwable throwable) {
           close(loader, throwable);
           result.add(new Inspection(
               source.getFileName().toString(),
               null,
+              languageCatalog.locales(),
               rootMessage(throwable)
           ));
         }
@@ -138,7 +149,7 @@ final class StarryListScriptCompiler {
       Path defaultBoard = directory.resolve("ore.groovy");
       if (Files.notExists(defaultBoard)) {
         try (InputStream source = StarryListScriptCompiler.class.getResourceAsStream(
-            "/assets/the-starry-list/ore.groovy"
+            "/assets/the-starry-list/script/ore.groovy"
         )) {
           if (source == null) {
             throw new IOException("Missing bundled default ore board");
@@ -164,7 +175,8 @@ final class StarryListScriptCompiler {
   private static StarryListScriptBoard compileOne(
       GroovyClassLoader loader,
       Path source,
-      boolean validateIcon
+      boolean validateIcon,
+      StarryListScriptLanguageCatalog languageCatalog
   )
       throws ReflectiveOperationException, IOException {
     Set<Class<?>> before = Arrays.stream(loader.getLoadedClasses())
@@ -199,6 +211,7 @@ final class StarryListScriptCompiler {
 
     StarryListScriptBoard board = (StarryListScriptBoard) constructor.newInstance();
     board.bindSourceFile(source.getFileName().toString());
+    board.bindLanguageCatalog(languageCatalog);
     if (validateIcon && (board.icon() == null || board.icon().isEmpty())) {
       throw new IllegalStateException("Script board has an empty icon: " + source.getFileName());
     }
@@ -225,7 +238,7 @@ final class StarryListScriptCompiler {
       }
 
       String locale = localeValue.toString().toLowerCase(Locale.ROOT);
-      if (!locale.matches("[a-z]{2}_[a-z]{2}")) {
+      if (!locale.matches(LOCALE_PATTERN)) {
         throw new IllegalStateException(
             "Invalid translation locale " + locale + " in " + board.sourceFile()
         );
@@ -280,6 +293,7 @@ final class StarryListScriptCompiler {
   record Inspection(
       String sourceFile,
       StarryListScriptSnapshot snapshot,
+      Set<String> locales,
       String error
   ) {
   }

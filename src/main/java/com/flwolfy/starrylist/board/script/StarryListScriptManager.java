@@ -27,6 +27,7 @@ public final class StarryListScriptManager {
   private Set<String> activeBoardIds = Set.of();
   private StarryListScriptSnapshot current;
   private List<ScriptInspection> inspections = List.of();
+  private Set<String> previewLocales = Set.of();
   private boolean previewed;
 
   private StarryListScriptManager() {
@@ -95,6 +96,7 @@ public final class StarryListScriptManager {
     try {
       PartialPreparation preparation = preparePartial(registry, true);
       inspections = preparation.inspections();
+      previewLocales = preparation.snapshot().locales();
       closeQuietly(preparation.snapshot());
       List<ScriptInspection> failures = inspections.stream()
           .filter(value -> !value.valid())
@@ -127,9 +129,10 @@ public final class StarryListScriptManager {
       StarryListBoardRegistry registry,
       boolean validateIcons
   ) {
-    previewed = true;
     PartialPreparation preparation = preparePartial(registry, validateIcons);
     inspections = preparation.inspections();
+    previewLocales = preparation.snapshot().locales();
+    previewed = true;
     closeQuietly(preparation.snapshot());
     List<ScriptInspection> failures = inspections.stream()
         .filter(value -> !value.valid())
@@ -174,6 +177,7 @@ public final class StarryListScriptManager {
       staged = preparation.snapshot();
       inspections = preparation.inspections();
       previewed = false;
+      previewLocales = Set.of();
       List<StarryListScriptBoard> previousBoards = boards(previous);
       Set<String> removedIds = removedIds(previousBoards, staged.boards());
       List<StarryListScriptBoard> deactivated = deactivated(previousBoards, staged.boards());
@@ -280,6 +284,18 @@ public final class StarryListScriptManager {
         .map(ScriptInspection::id)
         .filter(java.util.Objects::nonNull)
         .toList();
+  }
+
+  /**
+   * Returns script locales available to the configuration editor.
+   *
+   * @return preview locales when available, otherwise active script locales
+   */
+  public synchronized Set<String> availableLocales() {
+    if (previewed) {
+      return previewLocales;
+    }
+    return current == null ? Set.of() : current.locales();
   }
 
   /**
@@ -428,6 +444,7 @@ public final class StarryListScriptManager {
     List<StarryListScriptSubscription> subscriptions = new ArrayList<>();
     List<StarryListScriptLifecycle> lifecycles = new ArrayList<>();
     Map<String, Map<String, String>> translations = new HashMap<>();
+    Set<String> locales = new LinkedHashSet<>();
     for (StarryListScriptSnapshot snapshot : accepted) {
       loaders.addAll(snapshot.classLoaders());
       boards.addAll(snapshot.boards());
@@ -436,10 +453,15 @@ public final class StarryListScriptManager {
       snapshot.translations().forEach((locale, values) ->
           translations.computeIfAbsent(locale, ignored -> new HashMap<>()).putAll(values)
       );
+      locales.addAll(snapshot.locales());
     }
 
+    compiled.stream().findFirst().ifPresent(value -> locales.addAll(value.locales()));
+
     return new PartialPreparation(
-        new StarryListScriptSnapshot(loaders, boards, subscriptions, lifecycles, translations),
+        new StarryListScriptSnapshot(
+            loaders, boards, subscriptions, lifecycles, translations, locales
+        ),
         List.copyOf(results)
     );
   }
@@ -494,7 +516,8 @@ public final class StarryListScriptManager {
     List<StarryListScriptBoard> boards = boards(snapshot);
     registry.replaceScriptBoards(boards);
     StarryListLangManager.getInstance().replaceScriptTranslations(
-        snapshot == null ? Map.of() : snapshot.translations()
+        snapshot == null ? Map.of() : snapshot.translations(),
+        snapshot == null ? Set.of() : snapshot.locales()
     );
     eventHub.suspend();
     lifecycleHub.commit(snapshot == null ? List.of() : snapshot.lifecycles());

@@ -2,8 +2,6 @@ package com.flwolfy.starrylist.data.config;
 
 import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
-import com.flwolfy.starrylist.data.lang.StarryListLang;
-import com.flwolfy.starrylist.data.lang.StarryListLangAdapter;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -35,7 +33,6 @@ public final class StarryListConfigManager {
 
   private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
   private static final Gson GSON = new GsonBuilder()
-      .registerTypeAdapter(StarryListLang.class, new StarryListLangAdapter())
       .setPrettyPrinting()
       .create();
   private static final StarryListConfigManager INSTANCE = new StarryListConfigManager();
@@ -320,7 +317,7 @@ public final class StarryListConfigManager {
     JsonObject boards = object(root, "boards");
     JsonObject blacklist = object(root, "blacklist");
 
-    StarryListLang language = language(general, "language", defaults.general().language());
+    String language = language(general, "language", defaults.general().language());
     int permission = integer(
         general,
         "adminPermissionLevel",
@@ -374,14 +371,34 @@ public final class StarryListConfigManager {
     return value != null && value.isJsonObject() ? value.getAsJsonObject() : new JsonObject();
   }
 
-  private static StarryListLang language(
+  private static String language(
       JsonObject object,
       String key,
-      StarryListLang fallback
+      String fallback
   ) {
     try {
       JsonElement value = object.get(key);
-      return value == null ? fallback : GSON.fromJson(value, StarryListLang.class);
+      if (value == null || !value.isJsonPrimitive()
+          || !value.getAsJsonPrimitive().isString()) {
+        return fallback;
+      }
+      String locale = value.getAsString().trim().toLowerCase(Locale.ROOT);
+      Set<String> available = new HashSet<>(
+          StarryListLangManager.getInstance().availableLocales()
+      );
+      available.addAll(
+          com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
+              .availableLocales()
+      );
+      if (!locale.matches("[a-z0-9][a-z0-9_-]*") || !available.contains(locale)) {
+        StarryListMod.LOGGER.warn(
+            "Unsupported StarryList language {}; using {}",
+            locale,
+            fallback
+        );
+        return fallback;
+      }
+      return locale;
     } catch (RuntimeException exception) {
       return fallback;
     }

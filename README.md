@@ -123,7 +123,7 @@ Every world/server startup automatically reloads the JSON file and Groovy boards
 
 | Field | Type | Description |
 |---|---|---|
-| `general.language` | `string` | Server language: `en_us` or `zh_cn` |
+| `general.language` | `string` | Server language discovered from bundled resources and `config/starrylist/lang/*.json` |
 | `general.adminPermissionLevel` | `int` | Vanilla permission level required for `/starryadmin`, from `0` to `4` |
 
 ### Default display settings
@@ -183,8 +183,8 @@ If missing, StarryList creates `ore.groovy` as an editable example. Generated an
 Recommended workflow:
 
 1. Run `./gradlew build` in the mod project and open `the-starry-list-<version>-script-sdk.zip`, or use a released SDK ZIP.
-2. Edit `config/*.groovy` in the SDK and run `./gradlew compileGroovy`.
-3. Copy the script to the server's `config/starrylist/boards/` directory.
+2. Edit `config/*.groovy` and `config/lang/*.json` in the SDK, then run `./gradlew compileGroovy`.
+3. Copy the script to `config/starrylist/boards/` and its language files to `config/starrylist/lang/`.
 4. Run `/starryadmin scripts validate`.
 5. Add its board ID to `boards.enabledScriptBoards` or enable it through Cloth Config.
 6. Run `/starryadmin reload`, then verify subscriptions with `/starryadmin scripts list`.
@@ -207,10 +207,10 @@ final class OreMiningBoard extends StarryListScriptBoard {
   ItemStack icon() { Items.RAW_IRON.defaultInstance }
 
   Map translations() {
-    [
-      en_us: text("Ores Mined", "Counts blocks in the conventional ores tag."),
-      zh_cn: text("矿石挖掘榜", "统计玩家挖掘通用矿石标签方块的数量。")
-    ]
+    translatableText(
+      "starrylist.script.ore_mining.title",
+      "starrylist.script.ore_mining.lore.0"
+    )
   }
 
   void subscribe(StarryListScriptRegistrar registrar) {
@@ -224,7 +224,9 @@ final class OreMiningBoard extends StarryListScriptBoard {
 }
 ```
 
-Each file must define exactly one concrete `StarryListScriptBoard`. IDs, objective names, and order values must be unique. `translations()` must contain `en_us`, and every locale must contain the same number of lore lines.
+Each file must define exactly one concrete `StarryListScriptBoard`. IDs, objective names, and order values must be unique.
+
+`translatableText()` reads flat string entries from `config/starrylist/lang/<locale>.json`. Every declared key must exist in `en_us.json`; a missing key in another locale falls back to English with a warning. Language files are discovered on preview, validation, and reload, and only affect Groovy board titles and lore. Existing literal maps made with `text()` remain supported.
 
 ### Registrar API
 
@@ -276,7 +278,7 @@ The previous valid configuration and script catalog remain active. Check the ser
 | Single-player / LAN | Supported; install on the host client |
 | Player client on a dedicated server | Not required |
 | Client configuration UI | Optional with Cloth Config and ModMenu |
-| Languages | `en_us` / `zh_cn` |
+| Languages | Bundled `en_us` / `zh_cn`, plus dynamically discovered script locales |
 
 The project targets Minecraft 26.1 and later releases. Use the mod build published for your exact Minecraft version; a single JAR is not guaranteed to work across game versions.
 

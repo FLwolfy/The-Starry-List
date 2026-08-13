@@ -1,4 +1,3 @@
-import com.flwolfy.starrylist.board.base.StarryListBoardPresentation
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
 import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
@@ -34,11 +33,11 @@ final class OreMiningBoard extends StarryListScriptBoard {
   }
 
   @Override
-  Map<String, StarryListBoardPresentation> translations() {
-    return [
-      en_us: text("Ores Mined", "Counts blocks in the conventional ores tag."),
-      zh_cn: text("矿石挖掘榜", "统计玩家挖掘任意通用矿石标签方块的数量。")
-    ]
+  Map translations() {
+    return translatableText(
+      "starrylist.script.ore_mining.title",
+      "starrylist.script.ore_mining.lore.0"
+    )
   }
 
   @Override

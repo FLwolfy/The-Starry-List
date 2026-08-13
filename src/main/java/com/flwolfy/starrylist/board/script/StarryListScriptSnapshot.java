@@ -12,15 +12,17 @@ final class StarryListScriptSnapshot implements AutoCloseable {
   private final List<StarryListScriptSubscription> subscriptions;
   private final List<StarryListScriptLifecycle> lifecycles;
   private final Map<String, Map<String, String>> translations;
+  private final java.util.Set<String> locales;
 
   StarryListScriptSnapshot(
       GroovyClassLoader classLoader,
       List<StarryListScriptBoard> boards,
       List<StarryListScriptSubscription> subscriptions,
       List<StarryListScriptLifecycle> lifecycles,
-      Map<String, Map<String, String>> translations
+      Map<String, Map<String, String>> translations,
+      java.util.Set<String> locales
   ) {
-    this(List.of(classLoader), boards, subscriptions, lifecycles, translations);
+    this(List.of(classLoader), boards, subscriptions, lifecycles, translations, locales);
   }
 
   StarryListScriptSnapshot(
@@ -28,7 +30,8 @@ final class StarryListScriptSnapshot implements AutoCloseable {
       List<StarryListScriptBoard> boards,
       List<StarryListScriptSubscription> subscriptions,
       List<StarryListScriptLifecycle> lifecycles,
-      Map<String, Map<String, String>> translations
+      Map<String, Map<String, String>> translations,
+      java.util.Set<String> locales
   ) {
     this.classLoaders = List.copyOf(classLoaders);
     this.boards = List.copyOf(boards);
@@ -40,6 +43,7 @@ final class StarryListScriptSnapshot implements AutoCloseable {
             entry -> Map.copyOf(entry.getValue())
         )
     );
+    this.locales = java.util.Set.copyOf(locales);
   }
 
   List<StarryListScriptBoard> boards() {
@@ -56,6 +60,10 @@ final class StarryListScriptSnapshot implements AutoCloseable {
 
   Map<String, Map<String, String>> translations() {
     return translations;
+  }
+
+  java.util.Set<String> locales() {
+    return locales;
   }
 
   List<GroovyClassLoader> classLoaders() {

@@ -1,4 +1,3 @@
-import com.flwolfy.starrylist.board.base.StarryListBoardPresentation
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
 import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
 import com.flwolfy.starrylist.data.state.StarryListBoardState
@@ -70,19 +69,12 @@ final class StarlightExpeditionBoard extends StarryListScriptBoard {
   }
 
   @Override
-  Map<String, StarryListBoardPresentation> translations() {
-    return [
-      en_us: text(
-          "Starlight Expedition",
-          "Mine ores, survey blocks, and observe the sky with a spyglass.",
-          "Automatic scoring handles blacklisted players internally."
-      ),
-      zh_cn: text(
-          "星光远征榜",
-          "挖掘矿石、勘探方块，并用望远镜观测天空来收集星尘。",
-          "自动计分会在内部处理黑名单玩家。"
-      )
-    ]
+  Map translations() {
+    return translatableText(
+      "starrylist.script.starlight_expedition.title",
+      "starrylist.script.starlight_expedition.lore.0",
+      "starrylist.script.starlight_expedition.lore.1"
+    )
   }
 
   // Registration entry point -------------------------------------------------------------------

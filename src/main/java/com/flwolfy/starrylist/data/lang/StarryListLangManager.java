@@ -7,10 +7,12 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.network.chat.Component;
 
@@ -22,8 +24,8 @@ public final class StarryListLangManager {
 
   private final Map<String, Map<String, String>> languages = new HashMap<>();
   private final Set<String> warnedMissingKeys = ConcurrentHashMap.newKeySet();
-  private volatile Map<String, Map<String, String>> scriptLanguages = Map.of();
-  private volatile StarryListLang language = StarryListLang.ENGLISH;
+  private volatile ScriptCatalog scriptCatalog = new ScriptCatalog(Map.of(), Set.of());
+  private volatile String language = StarryListLang.ENGLISH.getLangKey();
 
   private StarryListLangManager() {
     for (StarryListLang candidate : StarryListLang.values()) {
@@ -55,10 +57,20 @@ public final class StarryListLangManager {
    *
    * @param language requested language
    */
+  public void setLanguage(String language) {
+    String normalized = normalize(language);
+    this.language = availableLocales().contains(normalized)
+        ? normalized
+        : StarryListLang.ENGLISH.getLangKey();
+  }
+
+  /**
+   * Selects one of the bundled server languages.
+   *
+   * @param language requested bundled language
+   */
   public void setLanguage(StarryListLang language) {
-    this.language = languages.containsKey(language.getLangKey())
-        ? language
-        : StarryListLang.ENGLISH;
+    setLanguage(language == null ? null : language.getLangKey());
   }
 
   /**
@@ -69,7 +81,7 @@ public final class StarryListLangManager {
    * @return rendered literal component
    */
   public Component text(String key, Object... arguments) {
-    return render(language.getLangKey(), key, arguments);
+    return render(language, key, arguments);
   }
 
   /**
@@ -81,9 +93,8 @@ public final class StarryListLangManager {
    * @return rendered literal component
    */
   public Component textFor(String locale, String key, Object... arguments) {
-    String normalized = locale == null ? "" : locale.toLowerCase(Locale.ROOT);
-    String selected = languages.containsKey(normalized) || scriptLanguages.containsKey(normalized)
-        ? normalized : language.getLangKey();
+    String normalized = normalize(locale);
+    String selected = availableLocales().contains(normalized) ? normalized : language;
     return render(selected, key, arguments);
   }
 
@@ -104,20 +115,52 @@ public final class StarryListLangManager {
    *
    * @param translations locale maps containing script translation keys
    */
-  public void replaceScriptTranslations(Map<String, Map<String, String>> translations) {
-    scriptLanguages = translations.entrySet().stream().collect(
+  public void replaceScriptTranslations(
+      Map<String, Map<String, String>> translations,
+      Set<String> locales
+  ) {
+    Map<String, Map<String, String>> copied = translations.entrySet().stream().collect(
         java.util.stream.Collectors.toUnmodifiableMap(
             Map.Entry::getKey,
             entry -> Map.copyOf(entry.getValue())
         )
     );
+    scriptCatalog = new ScriptCatalog(copied, Set.copyOf(locales));
     warnedMissingKeys.clear();
   }
 
+  /**
+   * Returns bundled and active script locales in stable lexical order.
+   *
+   * @return immutable available locale keys
+   */
+  public Set<String> availableLocales() {
+    Set<String> result = new TreeSet<>(languages.keySet());
+    result.addAll(scriptCatalog.locales());
+    return java.util.Collections.unmodifiableSet(new LinkedHashSet<>(result));
+  }
+
+  /**
+   * Returns a friendly built-in language name or the locale key for custom languages.
+   *
+   * @param locale locale key
+   * @return user-facing language label
+   */
+  public String languageName(String locale) {
+    String normalized = normalize(locale);
+    for (StarryListLang candidate : StarryListLang.values()) {
+      if (candidate.getLangKey().equals(normalized)) {
+        return candidate.toString();
+      }
+    }
+    return normalized;
+  }
+
   private Component render(String locale, String key, Object... arguments) {
+    Map<String, Map<String, String>> scriptLanguages = scriptCatalog.translations();
     String pattern = scriptLanguages.getOrDefault(locale, Map.of()).get(key);
     if (pattern == null) {
-      pattern = scriptLanguages.getOrDefault(language.getLangKey(), Map.of()).get(key);
+      pattern = scriptLanguages.getOrDefault(language, Map.of()).get(key);
     }
     if (pattern == null) {
       pattern = scriptLanguages.getOrDefault(
@@ -128,7 +171,7 @@ public final class StarryListLangManager {
       pattern = selected.get(key);
     }
     if (pattern == null) {
-      pattern = languages.getOrDefault(language.getLangKey(), Map.of()).get(key);
+      pattern = languages.getOrDefault(language, Map.of()).get(key);
     }
     if (pattern == null) {
       pattern = languages.getOrDefault(StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
@@ -146,5 +189,15 @@ public final class StarryListLangManager {
     } catch (RuntimeException ignored) {
       return Component.literal(pattern);
     }
+  }
+
+  private static String normalize(String locale) {
+    return locale == null ? "" : locale.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private record ScriptCatalog(
+      Map<String, Map<String, String>> translations,
+      Set<String> locales
+  ) {
   }
 }

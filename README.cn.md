@@ -123,7 +123,7 @@ config/starrylist/starrylist.json
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `general.language` | `string` | 服务端语言：`en_us` 或 `zh_cn` |
+| `general.language` | `string` | 从内置资源和 `config/starrylist/lang/*.json` 自动发现的服务端语言 |
 | `general.adminPermissionLevel` | `int` | `/starryadmin` 所需原版权限等级，范围 `0`～`4` |
 
 ### 默认显示设置
@@ -183,8 +183,8 @@ config/starrylist/boards/
 推荐工作流：
 
 1. 在模组项目运行 `./gradlew build`，解压 `the-starry-list-<版本>-script-sdk.zip`；也可以使用发布包中的 SDK。
-2. 在 SDK 中编辑 `config/*.groovy`，执行 `./gradlew compileGroovy`。
-3. 将脚本复制到服务器的 `config/starrylist/boards/`。
+2. 在 SDK 中编辑 `config/*.groovy` 与 `config/lang/*.json`，执行 `./gradlew compileGroovy`。
+3. 将脚本复制到 `config/starrylist/boards/`，语言文件复制到 `config/starrylist/lang/`。
 4. 执行 `/starryadmin scripts validate`。
 5. 将榜单 ID 加入 `boards.enabledScriptBoards`，或通过 Cloth Config 启用。
 6. 执行 `/starryadmin reload`，再用 `/starryadmin scripts list` 检查订阅。
@@ -207,10 +207,10 @@ final class OreMiningBoard extends StarryListScriptBoard {
   ItemStack icon() { Items.RAW_IRON.defaultInstance }
 
   Map translations() {
-    [
-      en_us: text("Ores Mined", "Counts blocks in the conventional ores tag."),
-      zh_cn: text("矿石挖掘榜", "统计玩家挖掘通用矿石标签方块的数量。")
-    ]
+    translatableText(
+      "starrylist.script.ore_mining.title",
+      "starrylist.script.ore_mining.lore.0"
+    )
   }
 
   void subscribe(StarryListScriptRegistrar registrar) {
@@ -224,7 +224,9 @@ final class OreMiningBoard extends StarryListScriptBoard {
 }
 ```
 
-每个文件必须只定义一个具体的 `StarryListScriptBoard`。ID、objective 名和 order 必须唯一。`translations()` 必须包含 `en_us`，而且所有语言的 lore 行数必须一致。
+每个文件必须只定义一个具体的 `StarryListScriptBoard`。ID、objective 名和 order 必须唯一。
+
+`translatableText()` 从 `config/starrylist/lang/<locale>.json` 的扁平字符串条目读取文案。声明的每个 key 都必须存在于 `en_us.json`；其他语言缺少 key 时会回退英文并记录警告。preview、validate 和 reload 都会重新发现语言文件，外部文件只影响 Groovy 榜单的标题与 lore。原有通过 `text()` 编写的字面量 map 仍然受支持。
 
 ### Registrar API
 
@@ -276,7 +278,7 @@ Groovy 文件是完全受信任的服务端代码，不是沙箱配置。它可�
 | 单人游戏 / LAN | 支持；安装在主机客户端 |
 | 进入独立服务器的玩家客户端 | 无需安装 |
 | 客户端配置界面 | 可选，需 Cloth Config 与 ModMenu |
-| 语言 | `en_us` / `zh_cn` |
+| 语言 | 内置 `en_us` / `zh_cn`，并支持动态发现脚本语言 |
 
 本项目以支持 Minecraft 26.1 及后续版本为目标。请下载与你所用 Minecraft 版本对应的模组构建；不保证同一个 JAR 能跨游戏版本通用。
 

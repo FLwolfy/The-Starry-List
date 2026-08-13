@@ -11,6 +11,7 @@ public abstract class StarryListScriptBoard extends StarryListBoard {
 
   private String sourceFile = "<unknown>";
   private int loreLines;
+  private StarryListScriptLanguageCatalog languageCatalog;
 
   /**
    * Returns localized titles and lore keyed by Minecraft locale.
@@ -35,6 +36,23 @@ public abstract class StarryListScriptBoard extends StarryListBoard {
    */
   protected final StarryListBoardPresentation text(String title, String... lore) {
     return new StarryListBoardPresentation(title, List.of(lore));
+  }
+
+  /**
+   * Resolves a title and ordered lore keys from every discovered script language file.
+   *
+   * @param titleKey title translation key, required in {@code en_us.json}
+   * @param loreKeys ordered lore translation keys, required in {@code en_us.json}
+   * @return localized presentations keyed by discovered Minecraft locale
+   */
+  protected final Map<String, StarryListBoardPresentation> translatableText(
+      String titleKey,
+      String... loreKeys
+  ) {
+    if (languageCatalog == null) {
+      throw new IllegalStateException("Script language catalog is not bound: " + sourceFile);
+    }
+    return languageCatalog.presentations(sourceFile, titleKey, loreKeys);
   }
 
   /**
@@ -68,5 +86,9 @@ public abstract class StarryListScriptBoard extends StarryListBoard {
 
   void bindLoreLines(int loreLines) {
     this.loreLines = loreLines;
+  }
+
+  void bindLanguageCatalog(StarryListScriptLanguageCatalog languageCatalog) {
+    this.languageCatalog = java.util.Objects.requireNonNull(languageCatalog, "languageCatalog");
   }
 }

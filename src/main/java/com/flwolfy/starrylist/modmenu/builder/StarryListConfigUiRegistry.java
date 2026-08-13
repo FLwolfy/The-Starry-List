@@ -5,6 +5,7 @@ import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListBooleanEntry;
 import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListEnumEntry;
 import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListIntegerEntry;
 import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListIntegerSliderEntry;
+import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListLanguageEntry;
 import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListStringEntry;
 import com.flwolfy.starrylist.modmenu.entry.scalar.StarryListUnsupportedEntry;
 import com.flwolfy.starrylist.modmenu.model.StarryListConfigEditorModel;
@@ -37,6 +38,10 @@ public final class StarryListConfigUiRegistry {
     registry.registerType(Integer.class, context -> new StarryListIntegerEntry(context, null, null));
     registry.registerType(String.class, StarryListStringEntry::new);
 
+    registry.registerPath(
+        "general.language",
+        StarryListLanguageEntry::new
+    );
     registry.registerPath(
         "general.adminPermissionLevel",
         context -> new StarryListIntegerSliderEntry(context, 0, 4)

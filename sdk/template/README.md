@@ -10,10 +10,11 @@ Minecraft server and contains no world, Minecraft JAR, or run configuration.
 1. Install JDK 25.
 2. Open this directory as a Gradle project in an editor with Groovy support.
 3. Allow the first Gradle sync to download Minecraft, Fabric API, Groovy, and Gradle dependencies.
-4. Edit or add `config/*.groovy` files.
+4. Edit or add `config/*.groovy` files and their flat translations in `config/lang/*.json`.
 5. Run `./gradlew compileGroovy` (`gradlew.bat compileGroovy` on Windows) to check syntax and
    imports.
-6. Copy finished scripts to the server's `config/starrylist/boards/` directory, then run
+6. Copy finished scripts to `config/starrylist/boards/` and language files to
+   `config/starrylist/lang/`, then run
    `/starryadmin scripts validate` and `/starryadmin scripts reload` on the server.
 
 Newly imported Groovy boards are disabled by default. Review the board, enable its **On/Off**
@@ -26,6 +27,13 @@ remains authoritative for board metadata, installed-mod compatibility, and reloa
 
 The bundled local Maven repository associates the StarryList binary with its sources. After Gradle
 sync, IDE documentation and source navigation should work without manually attaching a sources JAR.
+
+## Script translations
+
+Use `translatableText(titleKey, loreKeys...)` in a board's `translations()` method. Every declared
+key must exist in `config/lang/en_us.json`. Other locale files may omit keys; the server falls back
+to English and logs a warning. Locale filenames are discovered dynamically, while these external
+files affect only Groovy board titles and lore. Literal maps built with `text()` are still valid.
 
 ## Included example
 
