@@ -1,6 +1,5 @@
 package com.flwolfy.starrylist.board.base;
 
-import com.flwolfy.starrylist.data.lang.StarryListLang;
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import java.util.List;
 import net.minecraft.network.chat.Component;
@@ -59,22 +58,6 @@ public abstract class StarryListBoard {
    */
   protected List<String> loreTranslationKeys() {
     return List.of("starrylist.board." + id() + ".description");
-  }
-
-  /**
-   * Resolves the localized presentation through the shared language manager.
-   *
-   * @param language the language to render
-   * @return the localized title and lore
-   */
-  public final StarryListBoardPresentation presentation(StarryListLang language) {
-    StarryListLangManager translations = StarryListLangManager.getInstance();
-    return new StarryListBoardPresentation(
-        translations.textFor(language, titleTranslationKey()).getString(),
-        loreTranslationKeys().stream()
-            .map(key -> translations.textFor(language, key).getString())
-            .toList()
-    );
   }
 
   /**

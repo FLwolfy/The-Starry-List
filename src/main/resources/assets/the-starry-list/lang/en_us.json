@@ -1,4 +1,5 @@
 {
+  "starrylist.language.name": "English",
   "modmenu.descriptionTranslation.the-starry-list": "An extensible server-side leaderboard system with automatic board discovery and per-player sidebar rotation.",
   "starrylist.command.player_only": "/starry can only be used by a player.",
   "starrylist.command.not_ready": "StarryList is not ready yet.",

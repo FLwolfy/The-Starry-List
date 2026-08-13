@@ -123,8 +123,25 @@ Every world/server startup automatically reloads the JSON file and Groovy boards
 
 | Field | Type | Description |
 |---|---|---|
-| `general.language` | `string` | Server language discovered from bundled resources and `config/starrylist/lang/*.json` |
+| `general.language` | `string` | Server language discovered from bundled core resources and active script locales |
 | `general.adminPermissionLevel` | `int` | Vanilla permission level required for `/starryadmin`, from `0` to `4` |
+
+### Core and script languages
+
+Core server languages are discovered at startup from this mod's
+`assets/the-starry-list/lang/<locale>.json` resources. Adding a bundled language requires only a
+valid flat Minecraft language JSON; no Java enum or registry edit is needed. Each file must include
+its native display name, for example:
+
+```json
+{
+  "starrylist.language.name": "English"
+}
+```
+
+`en_us.json` is required and is the fallback for missing core translation keys. Bundled resources
+are immutable after startup. By contrast, `config/starrylist/lang/*.json` contains only Groovy board
+titles and lore and is rediscovered by script preview, validation, and reload.
 
 ### Default display settings
 
@@ -278,7 +295,7 @@ The previous valid configuration and script catalog remain active. Check the ser
 | Single-player / LAN | Supported; install on the host client |
 | Player client on a dedicated server | Not required |
 | Client configuration UI | Optional with Cloth Config and ModMenu |
-| Languages | Bundled `en_us` / `zh_cn`, plus dynamically discovered script locales |
+| Languages | Core locales discovered from bundled resources, plus dynamic script locales |
 
 The project targets Minecraft 26.1 and later releases. Use the mod build published for your exact Minecraft version; a single JAR is not guaranteed to work across game versions.
 

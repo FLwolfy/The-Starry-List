@@ -1,4 +1,5 @@
 {
+  "starrylist.language.name": "简体中文",
   "modmenu.descriptionTranslation.the-starry-list": "可自动发现榜单模块的纯服务端排行榜系统，并支持玩家独立设置侧边栏轮转。",
   "starrylist.command.player_only": "/starry 只能由游戏中的玩家使用。",
   "starrylist.command.not_ready": "StarryList 尚未准备完成。",

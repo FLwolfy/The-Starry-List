@@ -1,5 +1,6 @@
 package com.flwolfy.starrylist.data.config;
 
+import com.flwolfy.starrylist.StarryListMod;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistry;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -204,6 +205,19 @@ public record StarryListConfigData(
     }
 
     return List.copyOf(new java.util.LinkedHashSet<>(invalid));
+  }
+
+  static String canonicalLanguage(String locale, String fallback, Set<String> available) {
+    String normalized = locale == null ? "" : locale.trim().toLowerCase(Locale.ROOT);
+    if (!normalized.matches("[a-z0-9][a-z0-9_-]*") || !available.contains(normalized)) {
+      StarryListMod.LOGGER.warn(
+          "Unsupported StarryList language {}; using {}",
+          normalized,
+          fallback
+      );
+      return fallback;
+    }
+    return normalized;
   }
 
   /**

@@ -390,15 +390,7 @@ public final class StarryListConfigManager {
           com.flwolfy.starrylist.board.script.StarryListScriptManager.getInstance()
               .availableLocales()
       );
-      if (!locale.matches("[a-z0-9][a-z0-9_-]*") || !available.contains(locale)) {
-        StarryListMod.LOGGER.warn(
-            "Unsupported StarryList language {}; using {}",
-            locale,
-            fallback
-        );
-        return fallback;
-      }
-      return locale;
+      return StarryListConfigData.canonicalLanguage(locale, fallback, available);
     } catch (RuntimeException exception) {
       return fallback;
     }

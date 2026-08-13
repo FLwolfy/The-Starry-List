@@ -132,10 +132,6 @@ public final class StarryListLanguageEntry extends StarryListTooltipEntry<String
   }
 
   private static int priority(String locale) {
-    return switch (locale) {
-      case "en_us" -> 0;
-      case "zh_cn" -> 1;
-      default -> 2;
-    };
+    return "en_us".equals(locale) ? 0 : 1;
   }
 }

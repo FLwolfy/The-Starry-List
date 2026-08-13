@@ -1,16 +1,9 @@
 package com.flwolfy.starrylist.data.lang;
 
 import com.flwolfy.starrylist.StarryListMod;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import java.io.InputStreamReader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,28 +12,19 @@ import net.minecraft.network.chat.Component;
 /** Loads bundled translations for server-side literal messages. */
 public final class StarryListLangManager {
 
-  private static final Gson GSON = new Gson();
-  private static final StarryListLangManager INSTANCE = new StarryListLangManager();
-
-  private final Map<String, Map<String, String>> languages = new HashMap<>();
+  private final Map<String, StarryListLanguage> languages;
   private final Set<String> warnedMissingKeys = ConcurrentHashMap.newKeySet();
   private volatile ScriptCatalog scriptCatalog = new ScriptCatalog(Map.of(), Set.of());
-  private volatile String language = StarryListLang.ENGLISH.getLangKey();
+  private volatile String language = StarryListLanguageLoader.DEFAULT_LOCALE;
 
   private StarryListLangManager() {
-    for (StarryListLang candidate : StarryListLang.values()) {
-      String path = "/assets/" + StarryListMod.MOD_ID + "/lang/"
-          + candidate.getLangKey() + ".json";
-      try (InputStreamReader reader = new InputStreamReader(
-          Objects.requireNonNull(getClass().getResourceAsStream(path)),
-          StandardCharsets.UTF_8
-      )) {
-        Type type = new TypeToken<Map<String, String>>() {}.getType();
-        languages.put(candidate.getLangKey(), GSON.fromJson(reader, type));
-      } catch (Exception exception) {
-        StarryListMod.LOGGER.error("Failed to load language {}", candidate.getLangKey(), exception);
-      }
-    }
+    this(new StarryListLanguageLoader().load());
+  }
+
+  StarryListLangManager(Map<String, StarryListLanguage> languages) {
+    this.languages = java.util.Collections.unmodifiableMap(
+        new java.util.LinkedHashMap<>(languages)
+    );
   }
 
   /**
@@ -49,7 +33,7 @@ public final class StarryListLangManager {
    * @return process-wide server translation manager
    */
   public static StarryListLangManager getInstance() {
-    return INSTANCE;
+    return Holder.INSTANCE;
   }
 
   /**
@@ -61,16 +45,7 @@ public final class StarryListLangManager {
     String normalized = normalize(language);
     this.language = availableLocales().contains(normalized)
         ? normalized
-        : StarryListLang.ENGLISH.getLangKey();
-  }
-
-  /**
-   * Selects one of the bundled server languages.
-   *
-   * @param language requested bundled language
-   */
-  public void setLanguage(StarryListLang language) {
-    setLanguage(language == null ? null : language.getLangKey());
+        : StarryListLanguageLoader.DEFAULT_LOCALE;
   }
 
   /**
@@ -96,18 +71,6 @@ public final class StarryListLangManager {
     String normalized = normalize(locale);
     String selected = availableLocales().contains(normalized) ? normalized : language;
     return render(selected, key, arguments);
-  }
-
-  /**
-   * Renders text for one of StarryList's bundled server languages.
-   *
-   * @param language the requested bundled language
-   * @param key the translation key
-   * @param arguments the format arguments
-   * @return the rendered literal component
-   */
-  public Component textFor(StarryListLang language, String key, Object... arguments) {
-    return textFor(language == null ? null : language.getLangKey(), key, arguments);
   }
 
   /**
@@ -141,6 +104,15 @@ public final class StarryListLangManager {
   }
 
   /**
+   * Returns the locales backed by bundled core language resources.
+   *
+   * @return immutable core locale keys in stable lexical order
+   */
+  public Set<String> coreLocales() {
+    return java.util.Collections.unmodifiableSet(new LinkedHashSet<>(languages.keySet()));
+  }
+
+  /**
    * Returns a friendly built-in language name or the locale key for custom languages.
    *
    * @param locale locale key
@@ -148,12 +120,8 @@ public final class StarryListLangManager {
    */
   public String languageName(String locale) {
     String normalized = normalize(locale);
-    for (StarryListLang candidate : StarryListLang.values()) {
-      if (candidate.getLangKey().equals(normalized)) {
-        return candidate.toString();
-      }
-    }
-    return normalized;
+    StarryListLanguage bundled = languages.get(normalized);
+    return bundled == null ? normalized : bundled.name();
   }
 
   private Component render(String locale, String key, Object... arguments) {
@@ -164,20 +132,26 @@ public final class StarryListLangManager {
     }
     if (pattern == null) {
       pattern = scriptLanguages.getOrDefault(
-          StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
+          StarryListLanguageLoader.DEFAULT_LOCALE, Map.of()).get(key);
     }
-    Map<String, String> selected = languages.getOrDefault(locale, Map.of());
+    Map<String, String> selected = translations(locale);
     if (pattern == null) {
       pattern = selected.get(key);
+      if (pattern == null) {
+        warnMissingCoreTranslation(locale, key);
+      }
+    }
+    if (pattern == null && !language.equals(locale)) {
+      pattern = translations(language).get(key);
+      if (pattern == null) {
+        warnMissingCoreTranslation(language, key);
+      }
     }
     if (pattern == null) {
-      pattern = languages.getOrDefault(language, Map.of()).get(key);
+      pattern = translations(StarryListLanguageLoader.DEFAULT_LOCALE).get(key);
     }
     if (pattern == null) {
-      pattern = languages.getOrDefault(StarryListLang.ENGLISH.getLangKey(), Map.of()).get(key);
-    }
-    if (pattern == null) {
-      if (warnedMissingKeys.add(key)) {
+      if (warnedMissingKeys.add("all\0" + locale + '\0' + key)) {
         StarryListMod.LOGGER.warn("Missing language key: {}", key);
       }
 
@@ -195,9 +169,30 @@ public final class StarryListLangManager {
     return locale == null ? "" : locale.trim().toLowerCase(Locale.ROOT);
   }
 
+  private Map<String, String> translations(String locale) {
+    StarryListLanguage bundled = languages.get(locale);
+    return bundled == null ? Map.of() : bundled.translations();
+  }
+
+  private void warnMissingCoreTranslation(String locale, String key) {
+    if (!StarryListLanguageLoader.DEFAULT_LOCALE.equals(locale)
+        && languages.containsKey(locale)
+        && warnedMissingKeys.add("core\0" + locale + '\0' + key)) {
+      StarryListMod.LOGGER.warn(
+          "Missing {} core language key {}; using en_us fallback",
+          locale,
+          key
+      );
+    }
+  }
+
   private record ScriptCatalog(
       Map<String, Map<String, String>> translations,
       Set<String> locales
   ) {
+  }
+
+  private static final class Holder {
+    private static final StarryListLangManager INSTANCE = new StarryListLangManager();
   }
 }

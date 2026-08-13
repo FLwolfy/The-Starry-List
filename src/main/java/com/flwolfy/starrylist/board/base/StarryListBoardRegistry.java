@@ -1,7 +1,7 @@
 package com.flwolfy.starrylist.board.base;
 
 import com.flwolfy.starrylist.StarryListMod;
-import com.flwolfy.starrylist.data.lang.StarryListLang;
+import com.flwolfy.starrylist.data.lang.StarryListLangManager;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
@@ -410,14 +410,14 @@ public final class StarryListBoardRegistry {
       if (board instanceof com.flwolfy.starrylist.board.script.StarryListScriptBoard) {
         continue;
       }
-      for (StarryListLang language : StarryListLang.values()) {
+      for (String locale : StarryListLangManager.getInstance().coreLocales()) {
         try {
-          if (board.presentation(language) == null) {
+          if (board.presentationFor(locale) == null) {
             throw new IllegalArgumentException("null presentation");
           }
         } catch (RuntimeException exception) {
           throw new IllegalStateException(
-              "Invalid " + language.getLangKey() + " presentation for board " + id,
+              "Invalid " + locale + " presentation for board " + id,
               exception
           );
         }

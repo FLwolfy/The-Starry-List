@@ -123,8 +123,25 @@ config/starrylist/starrylist.json
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `general.language` | `string` | 从内置资源和 `config/starrylist/lang/*.json` 自动发现的服务端语言 |
+| `general.language` | `string` | 从内置核心资源和活动脚本 locale 自动发现的服务端语言 |
 | `general.adminPermissionLevel` | `int` | `/starryadmin` 所需原版权限等级，范围 `0`～`4` |
+
+### 核心语言与脚本语言
+
+核心服务端语言会在启动时从本模组的
+`assets/the-starry-list/lang/<locale>.json` 自动发现。新增随模组打包的语言只需添加一个合法的
+扁平 Minecraft 语言 JSON，无需再修改 Java enum 或注册表。每个文件必须包含该语言自己的
+显示名称，例如：
+
+```json
+{
+  "starrylist.language.name": "简体中文"
+}
+```
+
+`en_us.json` 必须存在，并作为核心翻译 key 缺失时的回退。打包资源只在模组启动时加载一次。
+与之不同，`config/starrylist/lang/*.json` 只保存 Groovy 榜单标题和 lore，并会在脚本 preview、
+validate 和 reload 时重新发现。
 
 ### 默认显示设置
 
@@ -278,7 +295,7 @@ Groovy 文件是完全受信任的服务端代码，不是沙箱配置。它可�
 | 单人游戏 / LAN | 支持；安装在主机客户端 |
 | 进入独立服务器的玩家客户端 | 无需安装 |
 | 客户端配置界面 | 可选，需 Cloth Config 与 ModMenu |
-| 语言 | 内置 `en_us` / `zh_cn`，并支持动态发现脚本语言 |
+| 语言 | 从打包资源动态发现核心 locale，并支持动态脚本 locale |
 
 本项目以支持 Minecraft 26.1 及后续版本为目标。请下载与你所用 Minecraft 版本对应的模组构建；不保证同一个 JAR 能跨游戏版本通用。
 
