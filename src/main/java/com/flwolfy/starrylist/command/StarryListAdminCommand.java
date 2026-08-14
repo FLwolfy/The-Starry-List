@@ -61,6 +61,10 @@ public final class StarryListAdminCommand {
                 .then(boardArgument()
                     .then(argument("targets", EntityArgument.players())
                         .executes(context -> mutateScores(context, Mutation.RESET)))))
+            .then(literal("recalculate")
+                .then(recalculatableBoardArgument()
+                    .then(argument("targets", EntityArgument.players())
+                        .executes(StarryListAdminCommand::scoreRecalculate))))
             .then(literal("reset-all")
                 .then(boardArgument().executes(StarryListAdminCommand::scoreResetAll))))
         .then(literal("profile")
@@ -77,6 +81,12 @@ public final class StarryListAdminCommand {
       boardArgument() {
     return argument("boardId", StringArgumentType.word())
         .suggests(StarryListBoardArgument.ENABLED);
+  }
+
+  private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String>
+      recalculatableBoardArgument() {
+    return argument("boardId", StringArgumentType.word())
+        .suggests(StarryListBoardArgument.RECALCULATABLE);
   }
 
   private static boolean hasPermission(CommandSourceStack source) {
@@ -234,6 +244,63 @@ public final class StarryListAdminCommand {
 
     int affected = runtime.scores().resetAll(board);
     context.getSource().sendSuccess(() -> text("starrylist.admin.score_updated", affected), true);
+    return affected;
+  }
+
+  private static int scoreRecalculate(CommandContext<CommandSourceStack> context)
+      throws CommandSyntaxException {
+    StarryListRuntime runtime = runtime();
+    String boardId = board(context);
+    var board = runtime.registry().get(boardId).orElse(null);
+    if (board == null) {
+      return failure(context, "starrylist.command.invalid_board");
+    }
+    if (!board.supportsRecalculation()) {
+      return failure(context, "starrylist.command.recalculation_unsupported");
+    }
+
+    Collection<ServerPlayer> players = EntityArgument.getPlayers(context, "targets");
+    int affected = 0;
+    int failed = 0;
+    for (ServerPlayer player : players) {
+      try {
+        var value = board.recalculate(
+            player,
+            runtime.state().boardState(boardId, player.getUUID())
+        );
+        if (value.isEmpty()) {
+          failed++;
+          StarryListMod.LOGGER.warn(
+              "Board {} returned no score while recalculating {}",
+              boardId,
+              player.getGameProfile().name()
+          );
+          continue;
+        }
+
+        runtime.scores().set(boardId, player, value.getAsInt());
+        affected++;
+      } catch (RuntimeException | LinkageError exception) {
+        failed++;
+        StarryListMod.LOGGER.error(
+            "Failed to recalculate board {} for player {} ({})",
+            boardId,
+            player.getGameProfile().name(),
+            player.getUUID(),
+            exception
+        );
+      }
+    }
+
+    int successful = affected;
+    if (affected > 0) {
+      context.getSource().sendSuccess(
+          () -> text("starrylist.admin.score_recalculated", successful), true
+      );
+    }
+    if (failed > 0) {
+      context.getSource().sendFailure(text("starrylist.admin.score_recalculation_failed", failed));
+    }
     return affected;
   }
 

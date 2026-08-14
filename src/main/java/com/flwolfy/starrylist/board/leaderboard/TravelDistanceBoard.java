@@ -3,9 +3,11 @@ package com.flwolfy.starrylist.board.leaderboard;
 import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
+import com.flwolfy.starrylist.data.state.StarryListBoardState;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.UUID;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -58,6 +60,19 @@ public final class TravelDistanceBoard extends StarryListBoard implements Starry
   @Override
   public ItemStack icon() {
     return Items.COMPASS.getDefaultInstance();
+  }
+
+  @Override
+  public OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    long centimeters = 0;
+    for (Identifier statistic : MOVEMENT_STATS) {
+      centimeters += Math.max(
+          0, player.getStats().getValue(Stats.CUSTOM.get(statistic))
+      );
+    }
+    state.putInt(REMAINDER_KEY, (int) (centimeters % 100));
+    initialize(player);
+    return OptionalInt.of((int) Math.min(Integer.MAX_VALUE, centimeters / 100));
   }
 
   @Override

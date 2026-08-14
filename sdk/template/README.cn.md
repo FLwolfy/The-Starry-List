@@ -40,11 +40,26 @@ locale 由文件名动态发现，外部文件仅影响 Groovy 榜单标题和 l
 API，包括两种 `listen()`、
 `onActiveStateChanged()`、`addAutomatic()`、`setAutomatic()`、
 `display()`、`isEnabled()`、两种玩家状态访问方式、`accumulate()`、`runtime()` 与
-`server()`。代码内的注释说明了各 API 的使用目的，以及哪些数据应当持久化。
+`server()`，并演示了可选的 `recalculate()` 榜单 hook。代码内的注释说明了各 API 的
+使用目的，以及哪些数据应当持久化。
 
 黑名单过滤完全在内部完成。`addAutomatic()`、`setAutomatic()` 和 `accumulate()` 会自动
 拒绝黑名单玩家，registrar 不暴露黑名单判断接口。通用 `state()` 需要镜像分数时，应像
 示例一样写入自动计分操作返回的结果。
+
+## 可选分数重算
+
+脚本可以覆盖以下方法，以支持 `/starryadmin score recalculate <boardId> <targets>`：
+
+```groovy
+OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+  OptionalInt.of(state.getInt("authoritative_score", 0))
+}
+```
+
+方法应从原版统计或榜单状态重建并返回绝对分数。StarryList 负责实际写入，包括黑名单玩家的
+归档分数。保留默认空实现的旧脚本仍然有效，并且不会出现在该命令的 `boardId` 补全中。
+目标仅限在线玩家，可使用 `@a` 等原版选择器。
 
 ## 可选资源生命周期
 

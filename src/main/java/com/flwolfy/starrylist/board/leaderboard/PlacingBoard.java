@@ -3,14 +3,19 @@ package com.flwolfy.starrylist.board.leaderboard;
 import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
+import com.flwolfy.starrylist.data.state.StarryListBoardState;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.UUID;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.gameevent.DynamicGameEventListener;
@@ -42,6 +47,17 @@ public final class PlacingBoard extends StarryListBoard implements StarryListBoa
   @Override
   public ItemStack icon() {
     return Items.BRICKS.getDefaultInstance();
+  }
+
+  @Override
+  public OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    long total = 0;
+    for (var item : BuiltInRegistries.ITEM) {
+      if (item instanceof BlockItem) {
+        total += Math.max(0, player.getStats().getValue(Stats.ITEM_USED.get(item)));
+      }
+    }
+    return OptionalInt.of((int) Math.min(Integer.MAX_VALUE, total));
   }
 
   @Override

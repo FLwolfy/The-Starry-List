@@ -1,8 +1,11 @@
 package com.flwolfy.starrylist.board.base;
 
 import com.flwolfy.starrylist.data.lang.StarryListLangManager;
+import com.flwolfy.starrylist.data.state.StarryListBoardState;
 import java.util.List;
+import java.util.OptionalInt;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -13,6 +16,19 @@ import net.minecraft.world.item.ItemStack;
  * manager. Every board owns its identity, localization keys and icon.</p>
  */
 public abstract class StarryListBoard {
+
+  private static final ClassValue<Boolean> RECALCULATION_SUPPORT = new ClassValue<>() {
+    @Override
+    protected Boolean computeValue(Class<?> type) {
+      try {
+        return type.getMethod(
+            "recalculate", ServerPlayer.class, StarryListBoardState.class
+        ).getDeclaringClass() != StarryListBoard.class;
+      } catch (NoSuchMethodException exception) {
+        throw new IllegalStateException("Missing StarryList recalculation hook", exception);
+      }
+    }
+  };
 
   /**
    * Returns the stable identifier used by configuration, commands, and saved data.
@@ -41,6 +57,31 @@ public abstract class StarryListBoard {
    * @return a fresh, non-empty icon stack
    */
   public abstract ItemStack icon();
+
+  /**
+   * Reconstructs this board's absolute score from authoritative player data.
+   *
+   * <p>This hook is optional. Implementations that support administrator-triggered recalculation
+   * override it and return the replacement score. The command owns the actual scoreboard write so
+   * blacklist archives and display names continue to follow the normal administrator policy.</p>
+   *
+   * @param player online player whose score is being reconstructed
+   * @param state persistent state scoped to this board and player
+   * @return the absolute replacement score, or empty when recalculation is unsupported
+   */
+  public OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    return OptionalInt.empty();
+  }
+
+  /**
+   * Returns whether the concrete board overrides {@link #recalculate(ServerPlayer,
+   * StarryListBoardState)}.
+   *
+   * @return whether this board supports score recalculation
+   */
+  public final boolean supportsRecalculation() {
+    return RECALCULATION_SUPPORT.get(getClass());
+  }
 
   /**
    * Returns the translation key for the board title.

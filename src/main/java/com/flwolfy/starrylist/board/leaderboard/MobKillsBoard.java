@@ -3,8 +3,11 @@ package com.flwolfy.starrylist.board.leaderboard;
 import com.flwolfy.starrylist.board.base.StarryListBoard;
 import com.flwolfy.starrylist.board.base.StarryListBoardCollector;
 import com.flwolfy.starrylist.board.base.StarryListBoardRegistrar;
+import com.flwolfy.starrylist.data.state.StarryListBoardState;
+import java.util.OptionalInt;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -29,6 +32,13 @@ public final class MobKillsBoard extends StarryListBoard implements StarryListBo
   @Override
   public ItemStack icon() {
     return Items.IRON_SWORD.getDefaultInstance();
+  }
+
+  @Override
+  public OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    return OptionalInt.of(Math.max(
+        0, player.getStats().getValue(Stats.CUSTOM.get(Stats.MOB_KILLS))
+    ));
   }
 
   @Override

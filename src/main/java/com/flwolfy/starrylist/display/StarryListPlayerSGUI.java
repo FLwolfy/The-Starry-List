@@ -50,7 +50,10 @@ public final class StarryListPlayerSGUI extends SimpleGui {
    * @param runtime active server services
    */
   public static void open(ServerPlayer player, StarryListRuntime runtime) {
-    new StarryListPlayerSGUI(player, runtime).open();
+    StarryListPlayerSGUI gui = new StarryListPlayerSGUI(player, runtime);
+    if (gui.open()) {
+      gui.playOpenSound();
+    }
   }
 
   /**
@@ -318,6 +321,17 @@ public final class StarryListPlayerSGUI extends SimpleGui {
         player,
         0.8F,
         1.35F,
+        player.getRandom().nextLong()
+    ));
+  }
+
+  private void playOpenSound() {
+    player.connection.send(new ClientboundSoundEntityPacket(
+        Holder.direct(SoundEvents.ANVIL_LAND),
+        SoundSource.BLOCKS,
+        player,
+        0.7F,
+        2.0F,
         player.getRandom().nextLong()
     ));
   }
