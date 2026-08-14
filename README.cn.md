@@ -74,6 +74,7 @@ See the English document [here](./README.md).
 | `/starryadmin score set <boardId> <targets> <value>` | 用有符号整数覆盖分数 |
 | `/starryadmin score add <boardId> <targets> <value>` | 为分数增加有符号整数 |
 | `/starryadmin score reset <boardId> <targets>` | 删除所选分数条目 |
+| `/starryadmin score recalculate <boardId> <targets>` | 根据榜单的权威数据重算在线玩家分数 |
 | `/starryadmin score reset-all <boardId>` | 删除一个榜单的所有分数 |
 | `/starryadmin profile get <player>` | 查看在线玩家保存的显示 profile |
 | `/starryadmin profile reset <targets>` | 让玩家恢复服务器默认 profile |
@@ -211,17 +212,31 @@ config/starrylist/boards/
 ```groovy
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
 import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
+import com.flwolfy.starrylist.data.state.StarryListBoardState
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.stats.Stats
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import java.util.OptionalInt
 
 final class OreMiningBoard extends StarryListScriptBoard {
   String id() { "ore_mining" }
   String objectiveName() { "sl_ore" }
   int order() { 100 }
   ItemStack icon() { Items.RAW_IRON.defaultInstance }
+
+  OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    long total = 0
+    BuiltInRegistries.BLOCK.each { block ->
+      if (block.defaultBlockState().is(ConventionalBlockTags.ORES)) {
+        total += Math.max(0, player.stats.getValue(Stats.BLOCK_MINED.get(block)))
+      }
+    }
+    OptionalInt.of((int) Math.min(Integer.MAX_VALUE, total))
+  }
 
   Map translations() {
     translatableText(
@@ -242,6 +257,12 @@ final class OreMiningBoard extends StarryListScriptBoard {
 ```
 
 每个文件必须只定义一个具体的 `StarryListScriptBoard`。ID、objective 名和 order 必须唯一。
+
+分数重算是可选能力。覆盖
+`OptionalInt recalculate(ServerPlayer player, StarryListBoardState state)` 后，该榜单才会出现在
+`/starryadmin score recalculate` 的 `boardId` 补全中；方法返回绝对分数，实际写入由
+StarryList 统一完成。保留默认 `OptionalInt.empty()` 的旧脚本仍可正常验证和加载。目标仅限
+在线玩家，支持 `@a` 等原版选择器；管理员重算黑名单玩家时会覆盖其归档分数。
 
 `translatableText()` 从 `config/starrylist/lang/<locale>.json` 的扁平字符串条目读取文案。声明的每个 key 都必须存在于 `en_us.json`；其他语言缺少 key 时会回退英文并记录警告。preview、validate 和 reload 都会重新发现语言文件，外部文件只影响 Groovy 榜单的标题与 lore。原有通过 `text()` 编写的字面量 map 仍然受支持。
 
