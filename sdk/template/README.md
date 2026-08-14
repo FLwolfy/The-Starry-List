@@ -41,12 +41,28 @@ files affect only Groovy board titles and lore. Literal maps built with `text()`
 registrar API, including both forms of
 `listen()`, `onActiveStateChanged()`, `addAutomatic()`, `setAutomatic()`,
 `display()`, `isEnabled()`, both player-state access forms, `accumulate()`, `runtime()`, and
-`server()`. Inline comments explain why each API appears and which values should be persistent.
+`server()`. It also demonstrates the optional `recalculate()` board hook. Inline comments explain
+why each API appears and which values should be persistent.
 
 Blacklist filtering is entirely internal. `addAutomatic()`, `setAutomatic()`, and `accumulate()`
 reject excluded players without script-side checks, and the registrar intentionally exposes no
 blacklist predicate. When generic `state()` should mirror a score, write the automatic operation's
 returned value as demonstrated by the example.
+
+## Optional score recalculation
+
+A script can opt into `/starryadmin score recalculate <boardId> <targets>` by overriding:
+
+```groovy
+OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+  OptionalInt.of(state.getInt("authoritative_score", 0))
+}
+```
+
+Return the absolute score reconstructed from vanilla statistics or board state. StarryList owns the
+scoreboard write, including blacklisted score archives. Scripts that retain the inherited empty
+implementation remain valid and are omitted from the command's `boardId` suggestions. Targets are
+online players and may use vanilla selectors such as `@a`.
 
 ## Optional resource lifecycle
 

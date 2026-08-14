@@ -74,6 +74,7 @@ The menu lets each player choose boards, hide or show the sidebar, toggle rotati
 | `/starryadmin score set <boardId> <targets> <value>` | Replaces scores with a signed integer |
 | `/starryadmin score add <boardId> <targets> <value>` | Adds a signed integer to scores |
 | `/starryadmin score reset <boardId> <targets>` | Removes the selected score entries |
+| `/starryadmin score recalculate <boardId> <targets>` | Rebuilds online players' scores from the board's authoritative data |
 | `/starryadmin score reset-all <boardId>` | Removes every score in one board |
 | `/starryadmin profile get <player>` | Shows an online player's saved display profile |
 | `/starryadmin profile reset <targets>` | Returns players to the server default profile |
@@ -211,17 +212,31 @@ Recommended workflow:
 ```groovy
 import com.flwolfy.starrylist.board.script.StarryListScriptBoard
 import com.flwolfy.starrylist.board.script.StarryListScriptRegistrar
+import com.flwolfy.starrylist.data.state.StarryListBoardState
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.stats.Stats
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import java.util.OptionalInt
 
 final class OreMiningBoard extends StarryListScriptBoard {
   String id() { "ore_mining" }
   String objectiveName() { "sl_ore" }
   int order() { 100 }
   ItemStack icon() { Items.RAW_IRON.defaultInstance }
+
+  OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    long total = 0
+    BuiltInRegistries.BLOCK.each { block ->
+      if (block.defaultBlockState().is(ConventionalBlockTags.ORES)) {
+        total += Math.max(0, player.stats.getValue(Stats.BLOCK_MINED.get(block)))
+      }
+    }
+    OptionalInt.of((int) Math.min(Integer.MAX_VALUE, total))
+  }
 
   Map translations() {
     translatableText(
@@ -242,6 +257,13 @@ final class OreMiningBoard extends StarryListScriptBoard {
 ```
 
 Each file must define exactly one concrete `StarryListScriptBoard`. IDs, objective names, and order values must be unique.
+
+Score reconstruction is optional. Override
+`OptionalInt recalculate(ServerPlayer player, StarryListBoardState state)` to make a board available
+to `/starryadmin score recalculate`; return an absolute score and let StarryList perform the write.
+Boards that keep the inherited `OptionalInt.empty()` implementation remain valid and are omitted
+from that command's `boardId` suggestions. Targets are online players, including vanilla selectors
+such as `@a`. Administrator recalculation also replaces a blacklisted player's archived score.
 
 `translatableText()` reads flat string entries from `config/starrylist/lang/<locale>.json`. Every declared key must exist in `en_us.json`; a missing key in another locale falls back to English with a warning. Language files are discovered on preview, validation, and reload, and only affect Groovy board titles and lore. Existing literal maps made with `text()` remain supported.
 

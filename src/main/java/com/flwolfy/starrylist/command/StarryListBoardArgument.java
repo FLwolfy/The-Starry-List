@@ -20,6 +20,17 @@ final class StarryListBoardArgument {
     );
   };
 
+  static final SuggestionProvider<CommandSourceStack> RECALCULATABLE = (context, builder) -> {
+    var runtime = StarryListMod.getRuntime();
+    return SharedSuggestionProvider.suggest(
+        runtime == null ? java.util.stream.Stream.empty()
+            : runtime.registry().all().stream()
+                .filter(board -> board.supportsRecalculation())
+                .map(board -> board.id()),
+        builder
+    );
+  };
+
   static String normalize(String value) {
     return value.trim().toLowerCase(Locale.ROOT);
   }

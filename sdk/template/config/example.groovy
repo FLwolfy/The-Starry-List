@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.state.BlockState
 
 import java.util.UUID
+import java.util.OptionalInt
 
 /**
  * Complete SDK example: players collect starlight by exploring the world.
@@ -66,6 +67,16 @@ final class StarlightExpeditionBoard extends StarryListScriptBoard {
   @Override
   ItemStack icon() {
     return Items.NETHER_STAR.defaultInstance
+  }
+
+  @Override
+  OptionalInt recalculate(ServerPlayer player, StarryListBoardState state) {
+    // recalculate(): optional absolute-score reconstruction used by
+    // /starryadmin score recalculate. Returning OptionalInt.empty() would mean unsupported.
+    // This board deliberately mirrors every accepted score change into POINTS_KEY, making that
+    // persistent value authoritative even though spyglass cooldown awards cannot be derived from
+    // a vanilla statistic after the fact. StarryList performs the actual scoreboard write.
+    return OptionalInt.of(state.getInt(POINTS_KEY, 0))
   }
 
   @Override
