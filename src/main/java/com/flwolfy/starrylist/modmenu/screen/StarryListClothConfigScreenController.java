@@ -70,7 +70,7 @@ public final class StarryListClothConfigScreenController {
         throw new IllegalStateException("The configuration could not be saved");
       }
       SystemToast.add(
-          Minecraft.getInstance().gui.toastManager(),
+          Minecraft.getInstance().getToastManager(),
           SAVE_RESULT,
           Component.translatable("starrylist.config.save_success"),
           Component.translatable("starrylist.config.save_success.detail")
@@ -78,7 +78,7 @@ public final class StarryListClothConfigScreenController {
     } catch (Exception exception) {
       StarryListMod.LOGGER.error("Failed to save StarryList client configuration", exception);
       SystemToast.add(
-          Minecraft.getInstance().gui.toastManager(),
+          Minecraft.getInstance().getToastManager(),
           SAVE_RESULT,
           Component.translatable("starrylist.config.save_failed"),
           Component.literal(exception.getMessage() == null
@@ -89,7 +89,7 @@ public final class StarryListClothConfigScreenController {
 
   private static void showRefreshResult(StarryListScriptManager.OperationResult result) {
     SystemToast.add(
-        Minecraft.getInstance().gui.toastManager(),
+        Minecraft.getInstance().getToastManager(),
         SAVE_RESULT,
         Component.translatable(result.success()
             ? "starrylist.config.boards.custom.refresh.success"

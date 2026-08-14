@@ -78,13 +78,13 @@ public final class StarryListPlayerSGUI extends SimpleGui {
   }
 
   private void render() {
-    GuiElementBuilder filler = element(Items.STAINED_GLASS_PANE.gray())
+    GuiElementBuilder filler = element(Items.GRAY_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = 0; slot < getVirtualSize(); slot++) {
       setSlot(slot, filler.build());
     }
 
-    GuiElementBuilder boardBackground = element(Items.STAINED_GLASS_PANE.red())
+    GuiElementBuilder boardBackground = element(Items.RED_STAINED_GLASS_PANE)
         .setName(Component.empty());
     for (int slot = BOARD_START_SLOT; slot < BOARD_START_SLOT + BOARDS_PER_PAGE; slot++) {
       setSlot(slot, boardBackground.build());
@@ -249,7 +249,7 @@ public final class StarryListPlayerSGUI extends SimpleGui {
           StarryListPlayerSGUI.open(player, runtime);
         }).build());
     Integer seconds = parseInterval(value);
-    GuiElementBuilder result = element(seconds == null ? Items.BARRIER : Items.DYE.lime())
+    GuiElementBuilder result = element(seconds == null ? Items.BARRIER : Items.LIME_DYE)
         .setName(text(seconds == null
             ? "starrylist.gui.interval.invalid" : "starrylist.gui.interval.confirm"));
     if (seconds != null) {
